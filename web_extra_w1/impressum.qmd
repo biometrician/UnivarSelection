@@ -1,0 +1,34 @@
+---
+title: "Impressum"
+author:
+  - name: Daniela Dunkler, Theresa Ullmann and Georg Heinze
+    affiliation: Medical University of Vienna, Austria
+  - name: Franziska Kappenberg
+    affiliation: University of Bonn, Germany
+date: last-modified
+---
+
+This is the web extra to Ullmann T., Heinze G., Kappenberg F., Henrion M., Sauerbrei W., Collins G., Leonhardt C.-S., Nold M., and Dunkler D. for TG2 of the STRATOS initiative (2026). *The Problem with Univariable Selection in Regression Modelling — and What To Do Instead.* In preparation.
+
+## Authors {.unnumbered}
+
+Daniela Dunkler, Theresa Ullmann & Georg Heinze\
+Medical University of Vienna, Center for Medical Data Science, Institute of Clinical Biometrics\
+Spitalgasse 23, 1090 Vienna, Austria\
+E-mail: daniela . dunkler @ meduniwien . ac . at
+
+## Licence {.unnumbered}
+
+Released under the [GNU General Public License v3.0 (GPL-3)](https://www.gnu.org/licenses/gpl-3.0.html){target="_blank"}.
+
+## Citation {.unnumbered}
+
+Ullmann T., Heinze G., Kappenberg F., Henrion M., Sauerbrei W., Collins G., Leonhardt C.-S., Nold M., and Dunkler D. for TG2 of the STRATOS initiative (2026). *The Problem with Univariable Selection in Regression Modelling — and What To Do Instead.* In preparation.
+
+## Disclaimer {.unnumbered}
+
+For educational purposes only. The authors accept no liability for use of results in clinical or policy decisions.
+
+## Version {.unnumbered}
+
+Version 0.1 — [RELEASE September 2026]

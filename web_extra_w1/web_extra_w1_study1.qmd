@@ -1,0 +1,462 @@
+---
+title: "Identifying biomarkers for cancer prognosis"
+author:
+  - name: Daniela Dunkler, Theresa Ullmann and Georg Heinze
+    affiliation: Medical University of Vienna, Austria
+  - name: Franziska Kappenberg
+    affiliation: University of Bonn, Germany
+  
+date: last-modified                            # "`r Sys.Date()`" for system date
+categories: [2026, univariable selection, prediction, biomarker, case study, pre-defined model]
+---
+
+
+This example is based on the study of @tong2010gene. Previous work suggested that gene expression of peripheral myelin protein 22 (PMP22) differs between invasive and non-invasive breast cell lines. Therefore, Tong et al. investigated its prognostic relevance in breast cancer using a retrospective multicentre study. PMP22 gene expression and clinical variables were measured in primary breast tumors by real-time PCR. The aim was to evaluate the association between PMP22 and prognosis while accounting for established clinical predictors: nodal status, estrogen receptor status, tumour size, and tumour grade. The modelling objective was *prediction*.
+
+The PMP22 data are publicly available at <https://doi.org/10.5281/zenodo.19632791> [@pmp22data] and include a data dictionary.
+
+The original publication reports 249 patients. However, the publicly available dataset contains 248 observations. Therefore, analyses are based on the available 248 patients.
+
+# Content of this analysis {.unnumbered}
+
+- @sec-bpa: Implementation of the pre-specified multivariable model\
+- @sec-uni: Implementation of an approach based on univariable selection\
+- @sec-contrast: Comparison of both approaches
+
+*All analyses use the same dataset. Differences in results reflect the analysis strategy rather than the data.*
+
+------------------------------------------------------------------------
+
+# The pre-specified multivariable model {#sec-bpa}
+
+::: callout-tip
+## Additional information
+
+As the complete analysis following a best practice approach is beyond the scope of this web extra, only results from the original publication [@ullmann_2026] are reproduced here. However, readers interested in a statistical analysis plan outlining a possible best practice analysis are directed to the following resources, where
+
+1.  [the statistical analysis plan is written down](web_extra_w2_study1_SAP.html) *\[Comment: not attached, work-in-progress\]* and
+
+2.  [this statistical analysis plan is executed](web_extra_w2_study1_SAPwithAnalysis.html) *\[Comment: not attached, work-in-progress\]*.
+:::
+
+Established prognostic factors for breast cancer are well known. Therefore, data-driven variable selection is not required. A multivariable model is specified a priori, including PMP22 and the established predictors tumour size, tumour grade, estrogen receptor status, and nodal status. Following Tong et al., tumour size and tumour grade are treated as ordinal quasi-continuous variables with values 1, 2, and 3.
+
+## Data preparation
+
+Required packages are loaded and helper functions defined.
+
+```{r}
+#| label: setup
+
+# load packages that are required
+pacman::p_load(survival,
+               table1,
+               ggplot2,
+               survminer,
+               dplyr,
+               knitr, 
+               Hmisc,
+               kableExtra)
+
+knitr::opts_chunk$set(fig.align = "center")
+
+# helper: extract HR, 95% CI, p-value, n and number of events from a
+# fitted Cox model, one row per coefficient; reused throughout the paper
+extract_cox <- function(fit) {
+  s <- summary(fit)
+  data.frame(
+    variable = rownames(s$coefficients),
+    n        = fit$n,
+    events   = s$nevent,
+    HR       = s$coefficients[, "exp(coef)"],
+    CI_low   = s$conf.int[, "lower .95"],
+    CI_high  = s$conf.int[, "upper .95"],
+    p        = s$coefficients[, "Pr(>|z|)"]
+  )
+}
+```
+
+The data are then read and prepared for analysis. The first 6 observations are plotted to get an impression of the data.
+
+```{r}
+#| label: reading-data
+
+# read and prepare the data
+pmpdata <- read.csv2("data/data_pmp22.csv", sep=",")
+pmpdata$X <- NULL   # drop the row-index column
+
+pmpdata$PMP22_f <- factor(pmpdata$PMP22, labels = c("<= Median", "> Median"))
+pmpdata$pT_f    <- factor(pmpdata$pT,    labels = c("pT1", "pT2", "pT3/pT4"))
+pmpdata$pN_f    <- factor(pmpdata$pN,    labels = c("pN0", "pN1"))
+pmpdata$G_f     <- factor(pmpdata$G,     labels = c("G1", "G2", "G3"))
+pmpdata$ER_f    <- factor(pmpdata$ER,    labels = c("negative", "positive"))
+
+label(pmpdata$G_f)     <- "Grade (G_f)"
+label(pmpdata$pT_f)    <- "Tumor stage (pT_f)"
+label(pmpdata$pN_f)    <- "Nodal status (pN_f)"
+label(pmpdata$ER_f)    <- "Estrogen receptor (ER_f)"
+label(pmpdata$PMP22_f) <- "PMP22 (PMP22_f)"
+
+# a data set with complete cases
+pmpdata_complete <- pmpdata[complete.cases(pmpdata),]
+
+head(pmpdata)
+
+```
+
+::: callout-tip
+## Additional information
+
+For simplicity, a complete-case analysis is performed here. In a potential best practice analysis multiple imputation might be more appropriate.
+:::
+
+## Data dictionary
+
+The analysis-ready data set (`pmpdata`) contains the following variables:
+
+### Outcome
+
+- `days`: Follow-up time (in days) from diagnosis to recurrence, death, or end of follow-up, whichever occurred first\
+- `rezs`: Event indicator (1 = recurrence or death; 0 = censored or cancer-unrelated death)
+
+### Predictors
+
+- `PMP22`: Peripheral myelin protein 22 (0 = negative, 1 = positive)\
+- `pT`: Tumour size (1 = pT1 \<1 cm, 2 = pT2 2-5 cm, 3 = pT3 \>5 cm or pT4)\
+- `pN`: Nodal status (0 = pN0, 1 = pN1)\
+- `G`: Tumour grade (1 = G1, 2 = G2, 3 = G3)\
+- `ER`: Estrogen receptor status (0 = negative, 1 = positive)
+
+Factor variables (with suffix `_f`) provide labelled versions for presentation.
+
+The complete-case dataset (`pmpdata_complete`) excludes observations with missing values. Of the 248 patients, 208 are included in the complete-case analysis.
+
+## Baseline characteristics
+
+```{r}
+#| label: baseline info
+#| tbl-cap: "Table 1: Baseline charateristics"
+ 
+table1( ~ PMP22_f + pN_f + ER_f + pT_f + G_f, data = pmpdata_complete)
+
+```
+
+## Outcome summary
+
+Among `r nrow(pmpdata_complete)` patients, `r sum(pmpdata_complete$rezs)` events occurred (`r round(100 * sum(pmpdata_complete$rezs) / nrow(pmpdata_complete), 1)`%).
+
+```{r}
+#| label: number events
+
+pmpdata_complete %>%
+  count(rezs) %>%
+  mutate(percent = round(100 * n / sum(n), 2))
+```
+
+Follow-up time is summarised using the reverse Kaplan-Meier estimator (i.e., Kaplan-Meier with the event indicator reversed) [@schemper1996], which provides an estimate of potential follow-up.
+
+```{r}
+#| label: reverse kaplan meier
+
+# reverse KM: flip event indicator (Schemper & Smith, 1996)
+fit_rkm <- survfit(Surv(days, 1 - rezs) ~ 1, data = pmpdata_complete)
+
+cat("Median follow-up:", summary(fit_rkm)$table["median"],
+    "days (~", round(summary(fit_rkm)$table["median"] / 365.25, 1), "years) (95%CI", summary(fit_rkm)$table["0.95LCL"], "-", summary(fit_rkm)$table["0.95UCL"], " days)\n")
+
+```
+
+Disease-free survival is visualised using an unstratified Kaplan-Meier curve.
+
+```{r}
+#| label: km-overall
+#| fig-cap: "Figure: Kaplan-Meier estimate of disease-free survival."
+#| message: FALSE
+
+
+fit_km <- survfit(Surv(days, rezs) ~ 1, data = pmpdata_complete)
+
+ggsurvplot(fit_km, data = pmpdata_complete, risk.table = TRUE, conf.int = TRUE,
+           xlab = "Days since diagnosis", ylab = "Disease-free survival probability",
+           legend = "none")
+
+```
+
+## Main research question
+
+The objective is to estimate the association between PMP22 and disease-free survival while adjusting for established clinical predictors. A multivariable Cox model is specified a priori. No data-driven variable selection is applied.
+
+::: {.callout-tip collapse="true" title="Additional information: model considerations"}
+
+In applied analyses, key assumptions of the Cox model should be assessed, including proportional hazards and potential multicollinearity. Pre-specified interactions may be considered where clinically justified. If the proportional hazards assumption is violated (e.g., for `ER`), time-varying effects can be incorporated, for example, by modelling an interaction of `ER` with log(`days`).
+:::
+
+The pre-specified model is:
+
+```{r}
+#| label: multivariable model estimation
+
+full_mod <- coxph(Surv(days, rezs) ~ PMP22 + pT + pN + G + ER, data = pmpdata_complete,
+                  x = TRUE, y = TRUE)
+
+summary(full_mod)
+
+```
+
+A typical tabular presentation in a publication could have the following form:
+
+```{r}
+#| label: multivariable model reporting
+#| tbl-cap: "Table: Pre-defined multivariable Cox model for disease-free survival based on 208 observations and 93 events."
+
+full_mod_tab <- extract_cox(full_mod) %>%
+  transmute(
+    Variable = c("PMP22", "Tumour Size (pT)", "Nodal Status (pN)", "Tumour Grade (G)", "ER Status (ER)"),
+    `Hazard ratio` = round(HR, 2),
+    `95% CI`       = paste0("(", round(CI_low, 2), ", ", round(CI_high, 2), ")"),
+    `p-value`      = format.pval(p, digits = 3, eps = 0.001)
+  )
+
+kable(full_mod_tab,
+      row.names = FALSE,
+      col.names = c("Variable", "HR", "95% CI", "p-value")) %>%
+  add_header_above(c(" " = 1, "Multivariable model" = 3)) %>%
+  kable_styling(full_width = TRUE, position = "center") %>%
+  column_spec(1:4, width = "25%") %>%
+  row_spec(0, bold = TRUE) %>%
+  row_spec(seq(1, nrow(full_mod_tab), by = 2), background = "#F2F2F2") %>%
+  row_spec(1, bold = TRUE)
+
+```
+
+**The results of the model can be interpreted as:** After adjustment for known clinical predictors (tumour size, tumour grade, ER status, and nodal status), higher PMP22 expression is associated with an increased hazard of recurrence (HR 1.77, 95% CI 1.09 to 2.87; p = 0.020).
+
+(In the original publication [@tong2010gene], this model is summarized on the right side of Table 3).
+
+------------------------------------------------------------------------
+
+# Analysis using univariable selection {#sec-uni}
+
+*This workflow reflects a common but problematic practice: each predictor is tested separately, and only statistically significant variables are retained for a final multivariable model.*
+
+## Univariable screening
+
+Each model is fitted on the subset of data available for that predictor. Consequently, sample size and number of events can vary across models. This is often not reported.
+
+```{r}
+#| label: univariable
+#| tbl-cap: "Table: Five univariable Cox regression models, each with its own available observations and events."
+
+vars <- c("PMP22", "pT", "pN", "G", "ER")
+
+# fit one univariable Cox model per candidate predictor, each using whatever
+# observations happen to be non-missing for that single variable
+uni_fits <- lapply(vars, function(v) {
+  coxph(as.formula(paste0("Surv(days, rezs) ~ ", v)), data = pmpdata, na.action = na.omit)
+})
+names(uni_fits) <- vars
+
+uni_tab <- do.call(rbind, lapply(uni_fits, extract_cox))
+
+uni_display <- uni_tab %>%
+  transmute(
+    Variable = variable,
+    n = n,
+    Events = events,
+    HR = round(HR, 2),
+    `p-value` = format.pval(p, digits = 3, eps = 0.001)
+  )
+
+uni_display <- uni_tab %>%
+  transmute(
+    Variable = factor(variable, levels = vars),
+    `n (events)` = paste0(n, " (", events, ")"),
+    HR = round(HR, 2),
+    `95% CI` = paste0("(", round(CI_low, 2), ", ", round(CI_high, 2), ")"),
+    `p-value` = format.pval(p, digits = 3, eps = 0.001)
+  ) %>%
+  arrange(Variable)
+
+kable(uni_display, 
+      row.names = FALSE,
+      col.names = c("Variable", "n (events)", "HR", "95% CI", "p-value")) %>%
+  add_header_above(c(" " = 1, "Univariable models" = 4)) %>%
+  kable_styling(full_width = TRUE, position = "center") %>%
+  column_spec(1, width = "25%") %>%
+  column_spec(2:5, width = "18.75%") %>%
+  row_spec(0, bold = TRUE) %>%
+  row_spec(1, bold = TRUE) %>%
+  row_spec(seq(1, nrow(uni_display), by = 2), background = "#F2F2F2")
+
+```
+
+<br>
+
+Variables with p \< 0.05 are retained:
+
+```{r}
+#| label: univariable filter
+
+alpha_screen <- 0.05
+
+selected <- uni_tab$variable[uni_tab$p < alpha_screen]
+dropped <- setdiff(vars, selected)
+
+cat("Retained after univariable screen (p <", alpha_screen, "):",
+    paste(selected, collapse = ", "), "\n\n")
+
+cat("Dropped:",
+    paste(dropped, collapse = ", "), "\n")
+
+```
+
+Only nodal status (`pN`) and estrogen receptor status (`ER`) are selected by univariable screening. **PMP22, the variable of primary interest, is excluded.** This occurs because univariable associations do not account for confounding. The effect of PMP22 (`PMP22`) is masked by its correlation with ER status (`ER`), which becomes apparent only after adjustment.
+
+## Multivariable model based on univariably selected variables
+
+A multivariable model is fitted using only the selected predictors.
+
+```{r}
+#| label: multivariable_n
+
+fit_uni_full <- coxph(as.formula(paste("Surv(days, rezs) ~", paste(selected, collapse = " + "))), data = pmpdata)
+
+cat("Complete-case n for the reduced model:", fit_uni_full$n, "\n\n")
+
+```
+
+The sample size of this multivariable model differs from the screening models due to joint missingness across selected variables.
+
+```{r}
+#| label: multivariable
+
+summary(fit_uni_full)
+
+```
+
+Based on this approach, PMP22 would not be considered prognostically relevant.
+
+A tabular presentation in a publication could have the following form. (In practice, the sample sizes and number of events used in the different models are typically not shown.)
+
+```{r}
+#| label: univariable and multivariable
+#| tbl-cap: "Table: Univariable Cox regression results and multivariable model derived by univariable screening."
+
+multi_sel_tab <- extract_cox(fit_uni_full)
+
+# prepare univariable table
+uni_fmt <- uni_tab %>%
+  transmute(
+    Variable = variable,
+    `n (events)_uni` = paste0(n, " (", events, ")"),
+    HR_uni = round(HR, 2),
+    CI_uni = paste0("(", round(CI_low, 2), ", ", round(CI_high, 2), ")"),
+    p_uni = format.pval(p, digits = 3, eps = 0.001)
+  )
+
+# prepare multivariable (selected) table
+multi_fmt <- multi_sel_tab %>%
+  transmute(
+    Variable = variable,
+    `n (events)_multi` = paste0(n, " (", events, ")"),
+    HR_multi = round(HR, 2),
+    CI_multi = paste0("(", round(CI_low, 2), ", ", round(CI_high, 2), ")"),
+    p_multi = format.pval(p, digits = 3, eps = 0.001)
+  )
+
+# merge side-by-side
+uni_multi_tab <- merge(uni_fmt, multi_fmt, by = "Variable", all = TRUE) %>%
+  arrange(match(Variable, uni_fmt$Variable)) 
+
+uni_multi_tab[is.na(uni_multi_tab)] <- ""
+
+kable(uni_multi_tab, row.names = FALSE,
+      col.names = c("Variable",
+                    "n (events)", "HR", "95% CI", "p-value",
+                    "n (events)", "HR", "95% CI", "p-value")) %>%
+  add_header_above(c(" " = 1,
+                     "Univariable models" = 4,
+                     "Multivariable model (selected)" = 4)) %>%
+  row_spec(1, bold = TRUE)
+
+```
+
+::: {.callout-tip collapse="true" title="Additional information: interpretation after selection"}
+
+Estimates from a model derived via variable selection are typically reported as if the selected variables had been pre-specified. However, standard errors, confidence intervals, and p-values do not account for the selection process and are therefore biased, i.e., typically they are too optimistic. In practice, this limitation is often not acknowledged and the application of univariable screening is sometimes not reported.
+:::
+
+------------------------------------------------------------------------
+
+# Contrasting the two approaches {#sec-contrast}
+
+```{r}
+#| label: approaches contrasted
+#| tbl-cap: "Table: Univariable versus multivariable Cox regression results."
+
+full_tab <- extract_cox(full_mod)
+
+# merge univariable and full-model results by predictor name
+merged <- merge(uni_tab, full_tab, by = "variable",
+                suffixes = c("_uni", "_full"), all = TRUE)
+
+# --- formatting ---
+final_out <- merged %>%
+  transmute(
+    Variable = factor(variable, levels = vars),
+    
+#    n_uni = n_uni,
+    `n (events)_uni` = paste0(n_uni, " (", events_uni, ")"),
+    HR_uni = round(HR_uni, 2),
+    CI_uni = paste0("(", round(CI_low_uni, 2), ", ", round(CI_high_uni, 2), ")"),
+    p_uni = format.pval(p_uni, digits = 3, eps = 0.001),
+    
+#    n_full = n_full,
+    `n (events)_full` = paste0(n_full, " (", events_full, ")"),
+    HR_full = round(HR_full, 2),
+    CI_full = paste0("(", round(CI_low_full, 2), ", ", round(CI_high_full, 2), ")"),
+    p_full = format.pval(p_full, digits = 3, eps = 0.001)
+  ) %>%
+  arrange(Variable)
+
+kable(final_out, 
+      col.names = c(
+        "Variable", rep(c("n (events)", "HR", "95% CI", "p-value"), times = 2))) %>%
+  add_header_above(c(" " = 1, "Univariable" = 4, "Full model" = 4)) %>%
+  row_spec(1, bold = TRUE)
+
+```
+
+<br>
+
+**The two analytical strategies lead to different conclusions. A pre-specified multivariable model identifies PMP22 as prognostically relevant, whereas univariable screening excludes it.**
+
+This discrepancy arises because univariable screening ignores joint effects and dependencies between predictors.
+
+::: callout-important
+## Key message
+
+Univariable selection can lead to exclusion of clinically relevant variables and biased inference. Pre-specification of multivariable models, guided by subject-matter knowledge, avoids these issues and yields more interpretable results.
+:::
+
+------------------------------------------------------------------------
+
+# References
+
+::: {#refs}
+:::
+
+------------------------------------------------------------------------
+
+# Computing Environment
+
+Display the computing environment for the analysis.
+
+```{r}
+#| label: sessionInfo
+#| echo: FALSE
+#| warning: FALSE
+
+sessioninfo::session_info()
+
+```

@@ -1,0 +1,662 @@
+---
+title: "A descriptive model for schoolchildren's lung health"
+author:
+  - name: Daniela Dunkler, Theresa Ullmann and Georg Heinze
+    affiliation: Medical University of Vienna, Austria
+  - name: Franziska Kappenberg
+    affiliation: University of Bonn, Germany
+date: last-modified
+categories: [2026, univariable selection, backward elimination, AIC, descriptive modeling aim, observational data, case study, data-driven variable selection]
+---
+
+
+We reanalyse data from a German study on the effects of ozone exposure on schoolchildren's lung growth, conducted between 1996 and 1999 [@ihorst2004long]. Following @buchholz2008properties, we consider a subset of 496 children with complete data on 24 variables potentially associated with the continuous outcome forced vital capacity in litres, measured in autumn 1997. The data are publicly available in the code supplement of @Sauerbrei2014 (<https://doi.org/10.1002/bimj.201300222>).
+
+Our goal was *descriptive modelling*. We aimed to identify the variables most strongly associated with forced vital capacity in a multivariable context, without necessarily implying that the identified associations are causal.
+
+In this analysis, the pre-specified full model is contrasted with a multivariable model derived via univariable selection and a second multivariable model derived via backward elimination with AIC.
+
+# Content of this analysis {.unnumbered}
+
+- @sec-ida: Data and initial data analysis\
+- @sec-fma: The pre-specified full multivariable model\
+- @sec-uni: A multivariable model derived via univariable selection\
+- @sec-bema: A multivariable model derived via backward elimination with AIC\
+- @sec-contrast: Comparison of the three multivariable models
+
+*All analyses use the same dataset. Differences in results reflect the analysis strategy rather than the data.*
+
+------------------------------------------------------------------------
+
+# Data and initial data analysis {#sec-ida}
+
+## Data preparation
+
+Required packages are loaded and helper functions defined.
+
+```{r}
+#| label: setup
+
+# load packages that are required
+pacman::p_load(dplyr,
+               ggplot2,
+               reshape2,
+               table1,
+               Hmisc,
+               knitr,
+               kableExtra,
+               abe)
+
+knitr::opts_chunk$set(fig.align = "center")
+
+# helper: extract point estimates, 95% Wald CIs and p-values from a fitted
+# lm (or abe) model, one row per coefficient
+extract_lm <- function(fit) {
+  cf <- summary(fit)$coefficients
+  data.frame(
+    variable = rownames(cf),
+    beta     = cf[, 1],
+    CI_low   = cf[, 1] - qnorm(0.975) * cf[, 2],
+    CI_high  = cf[, 1] + qnorm(0.975) * cf[, 2],
+    p        = cf[, 4]
+  )
+}
+
+# helpers to format coefficients/p-values for the comparison table, leaving
+# blank cells for variables that were not included in a given model
+fmt_beta <- function(x) ifelse(is.na(x), "", sprintf("%.3f", x))
+fmt_p    <- function(x) ifelse(is.na(x), "", format.pval(x, digits = 3, eps = 0.001))
+
+```
+
+The data are read and prepared for analysis. 
+
+```{r}
+#| label: reading-data
+
+ozone <- read.table(file = "data/ozone_BiomJ.txt", header = TRUE)
+ozone$AGEBGEW <- ozone$AGEBGEW / 1000   # birth weight: g -> kg
+
+# original (German) and English variable names, in the same order as the
+# columns in the raw data file (needed only for the renaming step below)
+varnames <- c("ALTER", "ADHEU", "SEX", "HOCHOZON", "AMATOP", "AVATOP",
+              "ADEKZ", "ARAUCH", "AGEBGEW", "FSNIGHT", "FLGROSS",
+              "FMILB", "FNOH24", "FTIER", "FPOLL", "FLTOTMED", "FO3H24",
+              "FSPT", "FTEH24", "FSATEM", "FSAUGE", "FLGEW", "FSPFEI",
+              "FSHLAUF")
+response <- "FFVC"
+
+varnames_new_fileorder <- c("age", "hay_fever", "sex", "high_ozone", "mat_atopy", "pat_atopy",
+                   "eczema", "smoke_expo", "birth_weight", "cough_night", "height",
+                   "sens_dust", "NO_h24", "sens_animal", "sens_pollen", "nr_med",
+                   "O3_h24", "sens_any", "temp_h24", "short_breath", "itchy_eyes",
+                   "weight", "wheeze", "cough_exerc")
+
+# rename the variables to have English names (order must match the raw file)
+colnames(ozone) <- c("FFVC", varnames_new_fileorder)
+
+# display/analysis order used throughout this document: covariates are
+# grouped by domain (anthropometric -> early-life exposures/family history ->
+# allergic sensitization -> allergic/respiratory diagnoses and symptoms ->
+# medication -> environmental exposure at testing), continuous variables
+# listed before conceptually related binary variables within each group
+varnames_new <- c("age", "sex", "height", "weight", "birth_weight",
+                   "mat_atopy", "pat_atopy", "smoke_expo",
+                   "sens_dust", "sens_animal", "sens_pollen", "sens_any",
+                   "hay_fever", "eczema", "cough_night", "short_breath",
+                   "itchy_eyes", "wheeze", "cough_exerc", "nr_med",
+                   "high_ozone", "NO_h24", "O3_h24", "temp_h24")
+
+# descriptive labels
+var_labels <- c(
+  "(Intercept)" = "Intercept",
+  age           = "age [years]",
+  sex           = "sex (0-male, 1-female)",
+  height        = "height [cm]",
+  weight        = "weight [kg]",
+  birth_weight  = "birth weight [kg]",
+  mat_atopy     = "maternal atopy",
+  pat_atopy     = "paternal atopy",
+  smoke_expo    = "smoke exposure at home",
+  sens_dust     = "sensitization to dust mites",
+  sens_animal   = "sensitization to animal danders",
+  sens_pollen   = "sensitization to pollen",
+  sens_any      = "sensitization to any allergens",
+  hay_fever     = "allergic rhinitis",
+  eczema        = "eczema",
+  cough_night   = "cough at night",
+  short_breath  = "shortness of breath",
+  itchy_eyes    = "itchy or watery eyes",
+  wheeze        = "wheezing",
+  cough_exerc   = "cough following exercise",
+  nr_med        = "number of medications [count]",
+  high_ozone    = "high ozone",
+  NO_h24        = "max. NO2 (24h) [\u00b5g/m\u00b3]",
+  O3_h24        = "max. O3 (24h) [\u00b5g/m\u00b3]",
+  temp_h24      = "max. temperature (24h) [\u00b0C]"
+)
+
+# for description, create a data set where binary variables are coded as
+# factors with corresponding factor labels
+binary_vars <- c("hay_fever", "high_ozone", "mat_atopy", "pat_atopy", "eczema",
+                  "smoke_expo", "cough_night", "sens_dust", "sens_animal",
+                  "sens_pollen", "sens_any", "short_breath", "itchy_eyes",
+                  "wheeze", "cough_exerc")
+
+ozone.desc <- ozone %>%
+  mutate(across(all_of(binary_vars), ~ factor(.x, levels = c(0, 1), labels = c("no", "yes"))),
+         sex = factor(sex, levels = c(0, 1), labels = c("male", "female")))
+
+for (v in varnames_new) label(ozone.desc[[v]]) <- var_labels[[v]]
+
+```
+
+
+::: {.callout-note collapse="true" title="The first 6 observations are shown to get an impression of the data."}
+
+```{r}
+#| label: show-head
+
+head(ozone)
+
+```
+
+:::
+
+## The dataset
+
+The publicly available dataset comprises `r nrow(ozone)` children with 24 variables potentially associated with forced vital capacity (coded `FFVC`) measured in autumn 1997. The variables `age`, `hay_fever`, `sex`, `high_ozone`, `mat_atopy`, `pat_atopy`, `eczema`, `smoke_expo`, and `birth_weight` were collected at the start of the study in spring 1996. The remaining variables were measured in autumn 1997, together with `FFVC`.
+
+- The outcome of interest is the continuous `FFVC`, forced vital capacity in litres.
+- Seven candidate covariates are continuous (`age`, `height`, `weight`, `birth_weight`, `NO_h24`, `O3_h24`, `temp_h24`).
+- `nr_med` is a discrete count taking values 0 to 3.
+- The remaining 16 candidate covariates are binary. `sex` is coded 0 = male, 1 = female. All others are coded 0 = no, 1 = yes.
+
+::: {.callout-note collapse="true" title="Data dictionary"}
+
+| **Variable** | **Description** |
+| --- | --- |
+| `age` | Age in years at 1996-03-01 |
+| `sex` | 0 = male, 1 = female |
+| `height` | Height (cm) at pulmonary function testing |
+| `weight` | Weight (kg) at pulmonary function testing |
+| `birth_weight` | Weight (kg) at birth |
+| `mat_atopy` | Maternal atopy (asthma, allergic rhinitis, eczema) |
+| `pat_atopy` | Paternal atopy (asthma, allergic rhinitis, eczema) |
+| `smoke_expo` | Tobacco smoke exposure at home |
+| `sens_dust` | Sensitization to dust mite allergens |
+| `sens_animal` | Sensitization to animal (dog and cat) danders |
+| `sens_pollen` | Sensitization to pollens (hazel, birch, grass) |
+| `sens_any` | Sensitization to any of pollens, dog/cat danders, or dust mites |
+| `hay_fever` | Allergic rhinitis diagnosed by a physician |
+| `eczema` | Eczema diagnosed by a physician |
+| `cough_night` | Cough at night or in the morning |
+| `short_breath` | Shortness of breath |
+| `itchy_eyes` | Itchy or watery eyes |
+| `wheeze` | Wheezing or whistling in the chest |
+| `cough_exerc` | Cough following exercise |
+| `nr_med` | Total number of medications at pulmonary function testing |
+| `high_ozone` | Lives in a village with high ozone values |
+| `NO_h24` | Maximal NO2 value of the last 24h before pulmonary function testing [µg/m³] |
+| `O3_h24` | Max. O3 value of the last 24h before pulmonary function testing [µg/m³] |
+| `temp_h24` | Max. temperature of the last 24h before pulmonary function testing [°C] |
+
+:::
+
+This dataset contains no missing values.
+
+## Initial data analysis
+
+### Distribution of the candidate covariates
+
+```{r}
+#| label: baseline-info
+#| tbl-cap: "Table 1: Distribution of the 24 candidate covariates"
+
+table1(as.formula(paste("~", paste(varnames_new, collapse = " + "))),
+       data = ozone.desc,
+       render.continuous = c(. = "Median [Min, Max]", . = "Q1 - Q3"))
+
+```
+
+Several binary covariates are rare, with fewer than 10% of children affected: `short_breath` and `wheeze` (5.2% each), `hay_fever` (7.5%), and `cough_exerc` (6.7%). `nr_med` is similarly sparse (89.7% of children took no medication; only 4 took two or three). 
+
+
+::: {.callout-tip collapse="true" title="Additional information: low prevalences"}
+
+Such low prevalences give few informative observations for these covariates, which can make the corresponding coefficient estimates imprecise and unstable in the models that follow. In an applied analysis, this has to be accounted for, for example by:
+
+- Interpreting the estimated associations for rare covariates cautiously, emphasising the width of the confidence interval rather than the point estimate.
+- Checking, via leverage/influence diagnostics, whether the few observations in the rare category disproportionately drive the estimated association.
+- Combining a rare category with a conceptually related, more prevalent one, but only where this is clinically and scientifically sensible, not merely to increase cell counts.
+- Using estimation methods less sensitive to small cell counts (e.g., penalised/Firth-type regression, or bootstrap confidence intervals).
+- Reporting a sensitivity analysis that excludes rare covariates, to check whether conclusions for the remaining covariates depend on their inclusion.
+
+:::
+
+
+### Correlation between candidate covariates
+
+Spearman correlations between all 24 candidate covariates are shown below. <!-- Spearman's rank correlation is used uniformly for all covariate pairs, including binary-binary pairs, for which it is numerically equivalent to the Pearson (phi) correlation of the 0/1-coded variables; this avoids having to choose a different coefficient for each combination of continuous, binary, and count variables.--> 
+
+```{r}
+#| label: correlation
+#| fig.width: 9
+#| fig.height: 9
+
+get_upper_tri <- function(cormat) {
+  cormat[lower.tri(cormat)] <- NA
+  cormat
+}
+
+cormat <- round(cor(ozone[, varnames_new], method = "spearman"), 2)
+melted_cormat <- melt(get_upper_tri(cormat), na.rm = TRUE)
+
+ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0,
+                        limit = c(-1, 1), name = "Spearman\ncorrelation") +
+  geom_text(aes(label = value), size = 2.5) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title = element_blank(),
+        panel.grid = element_blank())
+
+```
+
+```{r}
+#| label: correlation-summary
+
+cor_offdiag <- cormat[lower.tri(cormat)]
+
+```
+
+Spearman correlations between candidate covariates ranged from `r round(min(cor_offdiag), 2)` to `r round(max(cor_offdiag), 2)` (median absolute correlation `r round(median(abs(cor_offdiag)), 2)`).
+
+::: {.callout-tip collapse="true" title="Additional information: initial data analysis"}
+
+As with Case study 1, this is a simplified illustration. A thorough initial data analysis (IDA) should precede model specification, including checking the distributions of the outcome and candidate covariates (e.g., for outliers, implausible values, or rare categories, as noted above), assessing missing-data patterns, and examining the pattern of correlation between candidate covariates (e.g., several pairs above exceed 0.5 in absolute value) for potential redundancy. See @Heinze_2024 for a structured overview of the objectives and steps of IDA.
+:::
+
+### The outcome forced vital capacity `FFVC`
+
+```{r}
+#| label: desc-outcome
+#| message: FALSE
+
+ggplot(ozone, aes(x = FFVC)) +
+  geom_histogram(fill = "steelblue", color = "black", bins = 30) +
+  geom_boxplot(aes(y = -4), colour = "steelblue", width = 5, linewidth = 1) +
+  labs(x = "Forced vital capacity (l)", y = "count") +
+  ggtitle("Distribution of FFVC") +
+  theme_bw()
+
+```
+
+`FFVC` ranged from `r round(min(ozone$FFVC), 2)` to `r round(max(ozone$FFVC), 2)` litres (median `r round(median(ozone$FFVC), 2)`).
+
+------------------------------------------------------------------------
+
+# The pre-specified full model {#sec-fma}
+
+The 24 candidate covariates were chosen a priori based on subject-matter knowledge about determinants of childhood lung function, rather than through a data-driven search. In this sense, the full model including all of them is a sensible and defensible starting point. The full model is used as a reference model rather than as a presumed representation of the true data-generating process. Because the data-generating process is unknown, neither the full model nor any selected model can be regarded as the true model.
+
+All 24 candidate covariates are included simultaneously. This provides a reference for examining how associations change once candidate covariates are considered jointly. At the same time, it is often of practical interest whether a smaller, more parsimonious model can be found that leads to essentially the same substantive conclusions. This is the motivation behind the data-driven variable-selection approaches illustrated in the following sections.
+
+```{r}
+#| label: full-model
+
+full_mod <- lm(as.formula(paste(response, "~", paste(varnames_new, collapse = " + "))),
+                data = ozone, x = TRUE, y = TRUE)
+full_tab <- extract_lm(full_mod)
+
+summary(full_mod)
+
+```
+
+The full model has an apparent (unadjusted) R² of `r round(summary(full_mod)$r.squared, 3)` and an adjusted R² of `r round(summary(full_mod)$adj.r.squared, 3)`; adjusted R² accounts for the number of covariates (24) relative to the sample size and is the more appropriate summary of explained variance for this model.
+
+::: {.callout-tip collapse="true" title="Additional information: assumptions to check before continuing"}
+
+Before drawing substantive conclusions from the full model (or from any model derived from it), the usual assumptions of the linear model should be evaluated, including:
+
+- **Linearity**: whether the assumed linear relationship between each continuous covariate (`age`, `height`, `weight`, `birth_weight`, `NO_h24`, `O3_h24`, `temp_h24`) and `FFVC` is appropriate, or whether a non-linear functional form (e.g., via fractional polynomials) is needed.
+- **Homoscedasticity**: whether the variance of the residuals is roughly constant across the range of fitted values.
+- **Normality of residuals**: mainly relevant to the validity of confidence intervals and p-values in smaller samples.
+- **Influential observations and outliers**: whether individual children unduly influence the fitted model.
+- **Multicollinearity**: whether correlation among covariates (see above) inflates standard errors and destabilises coefficient estimates.
+- **Independence of observations**: whether children can reasonably be assumed independent (e.g., no clustering by school, village, or family).
+
+For brevity, these checks are not carried out here; the code below illustrates how they could be implemented.
+
+```{r}
+#| label: full-model-diagnostics
+#| eval: false
+
+# Residuals-vs-fitted, QQ-plot, scale-location and residuals-vs-leverage plots
+# plot(full_mod)
+
+# Variance inflation factors, to assess multicollinearity
+# car::vif(full_mod)
+
+# Component-plus-residual plots, to assess the functional form of continuous covariates
+# car::crPlots(full_mod)
+
+# Cook's distance, to flag influential observations
+# plot(full_mod, which = 4)
+```
+:::
+
+```{r}
+#| label: full-model-table
+#| tbl-cap: "Table: Pre-specified full multivariable model for FFVC (litres), 24 candidate covariates, n = 496."
+
+full_display <- full_tab %>%
+  transmute(Variable = var_labels[variable],
+            Estimate = round(beta, 3),
+            `95% CI` = paste0("(", round(CI_low, 3), ", ", round(CI_high, 3), ")"),
+            `p-value` = format.pval(p, digits = 3, eps = 0.001))
+
+kable(full_display, row.names = FALSE) %>%
+  kable_styling(full_width = TRUE, position = "center") %>%
+  row_spec(0, bold = TRUE) %>%
+  row_spec(seq(1, nrow(full_display), by = 2), background = "#F2F2F2")
+
+```
+
+::: {.callout-tip collapse="true" title="Additional information: interpretation of estimates in the table"}
+
+Statistical non-significance in this table does not imply that a covariate is clinically or biologically irrelevant. It only means that, at this sample size, no association distinguishable from zero was detected. The point estimates and their 95% confidence intervals describe the estimated association of each covariate with `FFVC`, adjusted for all other covariates in the model, and should be read primarily as effect sizes together with the range of values compatible with the data. A p-value only indicates how compatible the data are with a true effect of exactly zero and does not, by itself, measure the size or the clinical relevance of an association.
+
+:::
+
+
+```{r}
+#| label: full-model-sig
+
+sig_full <- full_tab$variable[full_tab$p < 0.05 & full_tab$variable != "(Intercept)"]
+
+```
+
+`r length(sig_full)` of the 24 candidate covariates are statistically significant (p \< 0.05) in the full model: `r paste(var_labels[sig_full], collapse = ", ")`.
+
+------------------------------------------------------------------------
+
+# Univariable selection {#sec-uni}
+
+*Each of the 24 candidate covariates is considered separately. The resulting estimate of the coefficient describes its marginal association with `FFVC`.*
+
+A univariable model is fitted for each candidate covariate, and covariates with p \< 0.05 are retained for a multivariable model. This illustrates a common, but problematic, data-driven selection strategy.
+
+```{r}
+#| label: univariable
+#| tbl-cap: "Table: 24 univariable linear regression models for FFVC (litres), ordered by p-value."
+
+uni_tab <- do.call(rbind, lapply(varnames_new, function(v) {
+  fit <- lm(as.formula(paste(response, "~", v)), data = ozone)
+  extract_lm(fit)[-1, ]     # drop the model-specific intercept row
+}))
+rownames(uni_tab) <- NULL
+
+uni_display <- uni_tab %>%
+  arrange(p) %>%
+  transmute(Variable = var_labels[variable],
+            Estimate = round(beta, 3),
+            `95% CI` = paste0("(", round(CI_low, 3), ", ", round(CI_high, 3), ")"),
+            `p-value` = format.pval(p, digits = 3, eps = 0.001))
+
+kable(uni_display, row.names = FALSE) %>%
+  kable_styling(full_width = TRUE, position = "center") %>%
+  row_spec(0, bold = TRUE)
+
+```
+
+```{r}
+#| label: univariable-filter
+
+selected_uni <- uni_tab$variable[uni_tab$p < 0.05]
+
+```
+
+`r length(selected_uni)` of the 24 candidate covariates are retained at the 5% level: `r paste(var_labels[selected_uni], collapse = ", ")`.
+
+The resulting multivariable model after univariable screening looks as follows:
+
+```{r}
+#| label: univariable-filtered-model
+
+filtered_mod <- lm(as.formula(paste(response, "~", paste(selected_uni, collapse = " + "))),
+                    data = ozone)
+filtered_tab <- extract_lm(filtered_mod)
+
+summary(filtered_mod)
+
+```
+
+This univariable-filtered model has an apparent (unadjusted) R² of `r round(summary(filtered_mod)$r.squared, 3)` and an adjusted R² of `r round(summary(filtered_mod)$adj.r.squared, 3)`.
+
+```{r}
+#| label: filtered-model-table
+#| tbl-cap: "Table: Multivariable model based on univariable selection, ordered by p-value."
+
+filtered_display <- filtered_tab %>%
+  mutate(is_intercept = variable == "(Intercept)") %>%
+  arrange(desc(is_intercept), p) %>%
+  transmute(Variable = var_labels[variable],
+            Estimate = round(beta, 3),
+            `95% CI` = paste0("(", round(CI_low, 3), ", ", round(CI_high, 3), ")"),
+            `p-value` = format.pval(p, digits = 3, eps = 0.001))
+
+kable(filtered_display, row.names = FALSE) %>%
+  kable_styling(full_width = TRUE, position = "center") %>%
+  row_spec(0, bold = TRUE) %>%
+  row_spec(seq(1, nrow(filtered_display), by = 2), background = "#F2F2F2")
+
+```
+
+::: {.callout-tip collapse="true" title="Additional information: interpretation after selection"}
+
+Estimates from a model built via univariable screening are often reported as though the retained variables had been pre-specified. Because the selection step is not accounted for, the resulting confidence intervals and p-values are typically too optimistic, and a different sample from the same population could plausibly select a different set of variables.
+:::
+
+------------------------------------------------------------------------
+
+# Backward elimination with AIC {#sec-bema}
+
+*Starting from the full model, covariates are sequentially removed if doing so improves the AIC. This illustrates an alternative, algorithmic multivariable selection strategy.*
+
+Because the full model's covariates were themselves pre-specified from subject-matter knowledge rather than assembled from an arbitrary or excessively large pool, starting the reduction from this defensible full model, and evaluating each covariate conditionally on all others at every step, is a reasonable approach here: unlike univariable screening, it does not ignore confounding, and unlike a data-driven search from scratch, it does not risk building a model out of covariates with no substantive justification.
+
+AIC balances model fit against model complexity. It is defined as $\mathrm{AIC} = -2 \times \text{log-likelihood} + 2 \times (\text{number of parameters})$, so each additional covariate must improve the fit enough to outweigh its 2-point complexity penalty. Lower AIC values indicate a preferred trade-off between fit and complexity. AIC is only meaningful for comparing models fitted to the same outcome and the same observations. It is the *difference* between AIC values, not their absolute value, that is interpreted. Differences of about 2 or less are usually considered negligible.
+
+```{r}
+#| label: backward-elimination
+
+modBE <- abe(full_mod, data = ozone, criterion = "AIC", tau = Inf, verbose = FALSE)
+be_tab <- extract_lm(modBE)
+
+summary(modBE)
+
+```
+
+The model selected by backward elimination with AIC has an apparent (unadjusted) R² of `r round(summary(modBE)$r.squared, 3)` and an adjusted R² of `r round(summary(modBE)$adj.r.squared, 3)`.
+
+```{r}
+#| label: be-model-table
+#| tbl-cap: "Table: Model for FFVC (litres) after backward elimination with AIC."
+
+be_display <- be_tab %>%
+  transmute(Variable = var_labels[variable],
+            Estimate = round(beta, 3),
+            `95% CI` = paste0("(", round(CI_low, 3), ", ", round(CI_high, 3), ")"),
+            `p-value` = format.pval(p, digits = 3, eps = 0.001))
+
+kable(be_display, row.names = FALSE) %>%
+  kable_styling(full_width = TRUE, position = "center") %>%
+  row_spec(0, bold = TRUE) %>%
+  row_spec(seq(1, nrow(be_display), by = 2), background = "#F2F2F2")
+
+```
+
+Backward elimination with AIC retains `r sum(varnames_new %in% be_tab$variable)` of the 24 candidate covariates.
+
+::: {.callout-tip collapse="true" title="Additional information: data-driven selection"}
+
+Backward elimination based on AIC is a data-driven selection strategy, even though it considers all candidate covariates jointly at every step. The removal steps are not independent hypothesis tests, and standard errors, confidence intervals and p-values from the final model do not account for the selection process and tend to be too optimistic.
+:::
+
+------------------------------------------------------------------------
+
+# Comparing the three models {#sec-contrast}
+
+Univariable and multivariable results are combined below. Candidate covariates are ordered by increasing p-value in the univariable models; cells are left blank where a variable was not included in a given model.
+
+- Variables that are **not significant univariably but significant in the full model** are shown in **bold on an amber background**.
+
+- Variables that are significant univariably **but not significant in the full model** are shown in *italics on a blue background*.
+
+For improved readability, 95% confidence intervals are not included in the table.
+
+```{r}
+#| label: comparison-table
+#| tbl-cap: "Table: Models for schoolchildren's forced vital capacity (litres)."
+
+comparison_tab <- uni_tab %>%
+  select(variable, beta, p) %>%
+  rename(uni.beta = beta, uni.p = p) %>%
+  full_join(filtered_tab %>% select(variable, beta, p) %>% rename(UNI.beta = beta, UNI.p = p), by = "variable") %>%
+  full_join(full_tab %>% select(variable, beta, p) %>% rename(full.beta = beta, full.p = p), by = "variable") %>%
+  full_join(be_tab %>% select(variable, beta, p) %>% rename(BE.beta = beta, BE.p = p), by = "variable")
+
+# order rows: Intercept first, then remaining variables sorted by univariable p-value
+row_order <- c("(Intercept)", uni_tab$variable[order(uni_tab$p)])
+comparison_tab <- comparison_tab[match(row_order, comparison_tab$variable), ]
+
+comparison_tab <- comparison_tab %>%
+  mutate(sig_uni  = !is.na(uni.p)  & uni.p  < 0.05,
+         sig_full = !is.na(full.p) & full.p < 0.05)
+
+bold_rows   <- which(comparison_tab$variable != "(Intercept)" & !comparison_tab$sig_uni &  comparison_tab$sig_full)
+italic_rows <- which(comparison_tab$variable != "(Intercept)" &  comparison_tab$sig_uni & !comparison_tab$sig_full)
+
+comparison_display <- comparison_tab %>%
+  transmute(Variable  = var_labels[variable],
+            uni.beta  = fmt_beta(uni.beta),  uni.p  = fmt_p(uni.p),
+            UNI.beta  = fmt_beta(UNI.beta),  UNI.p  = fmt_p(UNI.p),
+            full.beta = fmt_beta(full.beta), full.p = fmt_p(full.p),
+            BE.beta   = fmt_beta(BE.beta),   BE.p   = fmt_p(BE.p))
+
+kable(comparison_display, row.names = FALSE,
+      col.names = c("Variable", rep(c("Estimate", "p-value"), times = 4))) %>%
+  add_header_above(c(" " = 1, "Univariable models" = 2, "Univariable-filtered model" = 2,
+                     "Pre-specified full model" = 2, "Backward elimination with AIC" = 2)) %>%
+  kable_styling(full_width = TRUE, position = "center", font_size = 12) %>%
+  row_spec(0, bold = TRUE) %>%
+  # colour-blind-friendly (Okabe-Ito) tints, combined with bold/italic so colour
+  # is never the only cue distinguishing the two groups of rows
+  row_spec(bold_rows, bold = TRUE, background = "#FCE4B6") %>%
+  row_spec(italic_rows, italic = TRUE, background = "#CDE6F7")
+
+```
+
+
+**Reading the table:** Univariable coefficients describe the marginal association of each covariate with `FFVC`, whereas coefficients from the multivariable models describe associations conditional on the other covariates included in that model.
+
+
+`r length(bold_rows)` variables (`r paste(var_labels[comparison_tab$variable[bold_rows]], collapse = " and ")`) are not significant in their univariable models but are significant in the full model (bold rows). `high_ozone` and `NO_h24` are negatively correlated (Spearman `r round(cor(ozone$high_ozone, ozone$NO_h24, method = "spearman"), 2)`), so the univariable model for `high_ozone` obscures its adjusted association with `FFVC`; a form of *masking*. Conversely, `r length(italic_rows)` variables (*italic rows*), including age and birth weight, are significant in their univariable models but not in the full model, likely because they are positively correlated with covariates such as height and weight that themselves have a positive association with `FFVC`; a form of *amplification*.
+
+Univariable selection excludes both `high_ozone` and `wheeze`, despite their association with `FFVC` once the other covariates are accounted for, while retaining several variables whose evidence is weaker after adjustment. Backward elimination with AIC retains a different set of covariates and produces a model that resembles the full model more closely; in particular, it also retains `high_ozone` and `wheeze`.
+
+::: {.callout-tip collapse="true" title="Additional information: model (in)stability"}
+
+The three models above differ not only in which covariates they retain, but, for covariates such as `high_ozone`, even in the strength of the estimated association with `FFVC`. This illustrates a more general phenomenon: which covariates (and functional forms) a data-driven selection procedure retains, and the resulting effect estimates, can be sensitive to the specific sample and to the selection method used, so that a different sample from the same population could plausibly yield a different "final" model. Resampling-based approaches, such as bootstrap inclusion frequencies (as implemented in the `abe` package), can help quantify this selection instability [@wallisch_selection_2021].
+
+:::
+
+
+## Model size, fit, and parsimony
+
+```{r}
+#| label: model-comparison
+#| tbl-cap: "Table: Number of covariates, apparent and adjusted R-squared, and AIC for the three multivariable models."
+
+results_tab <- data.frame(
+  Model = c("Pre-specified full model", "Univariable-filtered model", "Backward elimination with AIC"),
+  `No. of covariates` = c(length(varnames_new),
+                           length(selected_uni),
+                           sum(varnames_new %in% be_tab$variable)),
+  `Apparent R2` = round(c(summary(full_mod)$r.squared,
+                           summary(filtered_mod)$r.squared,
+                           summary(modBE)$r.squared), 3),
+  `Adjusted R2` = round(c(summary(full_mod)$adj.r.squared,
+                           summary(filtered_mod)$adj.r.squared,
+                           summary(modBE)$adj.r.squared), 3),
+  AIC = round(c(AIC(full_mod),
+                AIC(filtered_mod),
+                AIC(modBE)), 1),
+  check.names = FALSE
+)
+
+kable(results_tab, row.names = FALSE) %>%
+  kable_styling(full_width = TRUE, position = "center") %>%
+  row_spec(0, bold = TRUE)
+
+```
+
+This comparison is descriptive and post hoc, not a formal statistical test between models: apparent $R^2$ never decreases as covariates are added and so favours larger models regardless of whether the added covariates are truly relevant. Adjusted $R^2$ and AIC both penalise the number of parameters and thus give a fairer, if still informal, comparison of fit against parsimony across models of different size. For AIC, smaller values indicate the preferred trade-off between fit and complexity.
+
+Although the model based on univariable selection includes fewer covariates, it explains only slightly less variance than the much larger full model. Apparent $R^2$ alone cannot distinguish a well-specified model from one that has excluded relevant covariates.
+
+Although neither the full model nor the backward-elimination model can be assumed to represent the true data-generating process, this example illustrates why univariable screening can be problematic: *marginal associations do not reliably determine which variables are relevant once covariates are considered jointly*.
+
+<br>
+
+::: callout-important
+
+## Key message
+
+Marginal (univariable) associations do not reliably indicate which variables matter once other covariates are taken into account. Univariable selection excluded `high_ozone` and `wheeze`, both of which showed a clear association with `FFVC` in the full model (*masking*), while retaining variables such as `age` and `birth_weight` whose univariable associations were attenuated once correlated covariates such as `height` and `weight` were included in the model (*amplification*). Backward elimination with AIC, which considers all covariates jointly at every step, produced a model closer to the full model and did not exclude `high_ozone` or `wheeze`.
+:::
+
+<br>
+
+::: callout-tip
+
+## What would be done in a real analysis?
+
+
+This worked example is simplified. A full best-practice analysis would additionally include:
+
+- Define the modelling objective (here: descriptive) before looking at the data, and decide a priori, based on subject-matter knowledge, which covariates define the starting set, the full model.
+- Decide whether data-driven variable selection is reasonable at all in the given setting, based on the modelling aim (e.g., descriptive vs. predictive) and on whether the sample size or events-per-variable ratio (model complexity) can support it.
+- Conduct a structured initial data analysis (IDA) before model specification, examining the distributions of the outcome and candidate covariates (e.g., outliers, implausible values, rare categories), missing-data patterns, and multicollinearity or redundancy among candidate covariates (e.g., via pairwise correlations), as outlined in @Heinze_2024.
+- Limit the complexity of the final model to what the available sample size can support, for example by applying sample-size or events-per-variable considerations for the number of candidate predictor parameters (@harrell_jr_regression_2015, @heinze_variable_2018, @riley_minimum_2019, @ullmann_preregistered_2026), to reduce the risk of overfitting.
+- Examine functional forms for the continuous covariates (`age`, `birth weight`, `height`, `NO2`, `O3`, `temperature`, `weight`) rather than assuming linearity, e.g., using fractional polynomials as implemented in the `mfp2` package [@R-mfp2].
+- Consider relevant interactions where scientifically plausible.
+- Examine residual diagnostics (e.g., residuals-versus-fitted and QQ-plots) and influence diagnostics (e.g., Cook's distance) for both the full model and the final selected model(s), to check the linear-model assumptions and to identify observations that unduly affect the results.
+- If a data-driven selection procedure is used, quantify selection instability, e.g., through bootstrap inclusion frequencies (available in the `abe` package) [@R-abe].
+- Assess predictive performance using resampling that repeats the entire modelling process, including any variable-selection step, within each resample.
+- Report effect estimates with confidence intervals rather than relying on p-values alone.
+:::
+
+------------------------------------------------------------------------
+
+# References
+
+::: {#refs}
+:::
+
+------------------------------------------------------------------------
+
+# Computing Environment
+
+Display the computing environment for the analysis.
+
+```{r}
+#| label: sessionInfo
+#| echo: FALSE
+#| warning: FALSE
+
+sessioninfo::session_info()
+
+```

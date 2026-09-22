@@ -1,0 +1,55 @@
+title: "Commented analyses of two real-world studies"
+
+project:
+  type: website
+
+website:
+  title: "Web extra"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: web_extra_w1_study1.qmd
+        text: Case study 1
+      - href: web_extra_w1_study2.qmd
+        text: Case study 2
+      - href: impressum.qmd
+        text: Impressum
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    number-sections: true
+    code-fold: true
+    code-tools: true
+    html-math-method: katex
+    self-contained: true
+    include-in-header:
+      - text: |
+          <style>
+          div.callout-tip .callout-title-container, div.callout-tip .callout-body,
+          div.callout-tip .callout-body-container,
+          div.callout-important, div.callout-important p, div.callout-important li,
+          div.callout-important .callout-title-container, div.callout-important .callout-body,
+          div.callout-important .callout-body-container,
+          div.callout-note, div.callout-note p, div.callout-note li,
+          div.callout-note .callout-title-container, div.callout-note .callout-body,
+          div.callout-note .callout-body-container {
+            font-size: 1em !important;
+          }
+          </style>
+
+author:
+  - name: Daniela Dunkler, Theresa Ullmann and Georg Heinze
+    affiliation: Medical University of Vienna, Austria
+  - name: Franziska Kappenberg
+    affiliation: University of Bonn, Germany
+
+date: last-modified
+
+bibliography: references.bib
+
+editor: source
+highlight-style: pygments

@@ -1,0 +1,71 @@
+---
+author:
+  - name: Daniela Dunkler, Theresa Ullmann and Georg Heinze
+    affiliation: Medical University of Vienna, Austria
+  - name: Franziska Kappenberg
+    affiliation: University of Bonn, Germany
+  
+date: last-modified
+categories:
+  - 2026
+  - regression modeling
+  - univariable selection
+  - variable selection
+  - case studies
+---
+
+
+```{r}
+#| label: set-up
+#| echo: false
+
+pacman::p_load(colorize)
+
+```
+
+
+In this web extra to the manuscript *The Problem with Univariable Selection in Regression Modelling-and What To Do Instead* [@ullmann_2026], we present reproducible analyses of two real-world case studies. For each case study, we first apply modelling strategies appropriate to the respective research question. We then contrast these results with those obtained using a univariable selection strategy, illustrating the implications of data-driven variable selection based on univariable screening.
+The analyses are intended as exemplars rather than comprehensive analyses of the underlying studies. Applied studies may require additional modelling steps depending on the research question and context. For comprehensive results and the full analyses, we refer readers to the original publications.
+
+All analyses, tables, and figures reported in this web extra can be reproduced by running the accompanying R code.
+
+<br>
+
+
+Clicking on `r colorize("Code", "gray")` allows the reader to view the R code needed to recreate the analysis.
+
+```{r}
+#| label: example
+
+# This is an example code.
+cat("Hello world.")
+
+```
+<br>
+
+
+::: callout-tip
+## Additional information
+
+The tip contains additional explanations, which may include suggestions for further analyses that should be considered in an applied analysis.
+
+:::
+
+<br>
+
+
+# Case studies {.unnumbered}
+
+| | |
+|---|---|
+| **1** | [**Identifying biomarkers for cancer prognosis**](web_extra_w1_study1.html) <br> The aim was to investigate the prognostic relevance of PMP22 gene expression while accounting for established clinical predictors. The modelling objective was prediction. The example is based on the study The example is based on the study of @tong2010gene. |
+| **2** | [**A descriptive model for schoolchildren's lung health**](web_extra_w1_study2.html) <br> The aim was to identify variables most strongly associated with forced vital capacity in schoolchildren in a multivariable context, without necessarily implying that the observed associations are causal. The modelling objective was description. The example is based on @buchholz2008properties. |
+
+<br>
+
+
+# References {.unnumbered}
+
+::: {#refs}
+:::
+
