@@ -2,9 +2,9 @@
 
 This repository contains the code and supporting materials for the web extras accompanying:
 
-> Ullmann T., Heinze G., Kappenberg F., Henrion M., Sauerbrei W., Collins G., Leonhardt C.-S., Nold M., and Dunkler D. (2026).
+> Ullmann T., Heinze G., Kappenberg F., Henrion M., Sauerbrei W., Collins G., Leonhardt C.-S., Nold M., and Dunkler D., for TG2 of the STRATOS initiative (2026).
 > *The Problem with Univariable Selection in Regression Modelling — and What To Do Instead.*
-> STRATOS Initiative, TG2. In preparation.
+> Manuscript in preparation.
 
 ## Contents
 
