@@ -10,7 +10,7 @@ date: last-modified
 
 This is the web extra to Ullmann T., Heinze G., Kappenberg F., Henrion M., Sauerbrei W., Collins G., Leonhardt C.-S., Nold M., and Dunkler D. for TG2 of the STRATOS initiative (2026). *The Problem with Univariable Selection in Regression Modelling — and What To Do Instead.* In preparation.
 
-## Authors {.unnumbered}
+## Contact {.unnumbered}
 
 Daniela Dunkler, Theresa Ullmann & Georg Heinze\
 Medical University of Vienna, Center for Medical Data Science, Institute of Clinical Biometrics\

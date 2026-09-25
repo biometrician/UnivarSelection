@@ -1,0 +1,216 @@
+---
+title: "Statistical Analysis Plans: Identifying biomarkers for cancer prognosis"
+author:
+  - name: Daniela Dunkler, Theresa Ullmann and Georg Heinze
+    affiliation: Medical University of Vienna, Austria
+  - name: Franziska Kappenberg
+    affiliation: University of Bonn, Germany
+  
+date: last-modified                            # "`r Sys.Date()`" for system date
+categories: [2026, statistical analysis plan, univariable selection, prediction, biomarker, case study, pre-defined model]
+---
+
+# Content {.unnumbered}
+Two contrasting Statistical Analysis Plans (SAP) for the same prediction problem are presented.
+
+- @sec-sap_bpa: A pre-specified multivariable strategy consistent with current best-practice guidance.
+- @sec-sap_uni: A common but flawed workflow built on univariable variable selection.
+- @sec-sap_contrast: Comparison of both approaches.
+
+Both operate on the same 248-patient dataset and the same disease-free survival outcome, so any difference in conclusions is attributable to the *statistical strategy*, not to the data.
+
+
+------------------------------------------------------------------------
+
+# Study context shared by both SAPs {.unnumbered}
+
+- **Design**:
+  - Retrospective multicenter cohort (Vienna, Innsbruck),
+  - Sample size: n = 248 (248 of the 249 patients reported in @tong2010gene are available).
+  - Center (Vienna vs. Innsbruck) is not available as a variable in the working dataset; between-center heterogeneity in baseline hazard or case-mix can therefore not be modeled or stratified for, and should be reported as a limitation.
+- **Available data**:
+  - Data available at <https://doi.org/10.5281/zenodo.19632791>.
+- **Outcome**:
+  - Disease-free survival time in days (`days`) from diagnosis to recurrence, distant metastasis or censoring,
+  - Event indicator `rezs` (1 = recurrence).
+  - 109/248 events observed (event rate 44.0%). This matches the 109 recurrences reported in the source publication.
+- **Variable of main interest:**
+  - `PMP22` (gene expression dichotomized at the sample median: 0 = low/$\leq$ median, 1 = high/\> median; this dichotomization was done in the source publication).
+- **Candidate predictors:** All pre-specified from clinical knowledge, not derived from these data:
+  - `pT` (tumour size, 1/2/3, with category 3 combining pT3+pT4 given sparse subgroup sizes),
+  - `pN` (nodal status, 0 = node-negative, 1 = node-positive),
+  - `G` (differentiation grade, 1/2/3),
+  - `ER` (estrogen receptor status, 0 = negative, 1 = positive).
+- **Missingness**:
+  - `PMP22` 1/248 (0.4%), `pT` 18/248 (7.3%), `pN` 29/248 (11.7%), `G` 21/248 (8.5%), `ER` 1/248 (0.4%).
+  - 208/248 (83.9%) cases are complete on all five predictors; 40 cases (16.1%) have at least one missing predictor.
+  - Note: the source publication reports `ER` missing in 22.5% of cases at the immunohistochemistry stage but re-classified nearly all patients using an mRNA-expression-based surrogate. This explains why `ER` is essentially complete here and should be documented as a data-provenance detail, not a genuine near- absence of missingness.
+- **Modeling aim**:
+  - Prediction (not pure explanation)
+  - *Quantify how well disease-free survival can be predicted from PMP22 jointly with the established clinical factors?*
+- **Software**: 
+  - All analyses conducted in R (version $\geq$ 4.3). 
+  - Cox models fitted via `survival::coxph()` using the Efron approximation for tied event times; multiple imputation via `mice` (chained equations); generalized variance inflation factors via `car::vif()`; proportional-hazards/functional-form diagnostics via `survival::cox.zph()` and martingale/deviance residuals; discrimination (C-index, time-dependent AUC), calibration, explained variation, and bootstrap optimism-correction via `rms`/`pec`/`survAUC` or equivalent packages. 
+  - Random seeds are fixed and reported for all stochastic steps (imputation, bootstrap) to ensure reproducibility.
+
+------------------------------------------------------------------------
+
+# SAP A: Pre-specified multivariable prediction model {#sec-sap_bpa}
+
+## A.1 Objective {.unnumbered}
+
+The objective is to estimate a multivariable Cox proportional hazards model for disease-free survival containing all five pre-specified predictors simultaneously, to quantify the (adjusted) prognostic contribution of PMP22 alongside established clinical factors, and to report its incremental and overall prediction performance. No predictor is excluded based on its own association with the outcome.
+
+## A.2 Initial data analysis (IDA) {.unnumbered}
+
+Before the analysis, an IDA is conducted to assess data quality and distributions and to adapt the SAP if data peculiarities warrant modifications.
+
+- Technical/range checks: valid coding of each factor (`PMP22`, `pN`, `ER` $\in$ {0,1}; `pT`, `G` $\in$ {1,2,3}); `days` \> 0; consistency between `days`/`rezs` and plausible follow-up (no negative or implausibly short times without a corresponding early event).
+- Univariate distributions and cross-tabulations of all predictors (not against the outcome for selection purposes, but to check plausibility, e.g., expected positive correlation between `PMP22` and `ER` as reported previously).
+- Missing-data description: missingness per variable, pattern, and proportion of cases with missing predictors.
+- Missing-data mechanism: compare observed-vs-missing subgroups on the *other* observed covariates and on the outcome (event indicator, log follow-up time) via logistic regression of each missingness indicator on the remaining variables, to assess plausibility of missing-at-random (MAR) vs missing-completely-at-random (MCAR). No formal test (e.g., Little's MCAR) is decisive here. The assessment is used only to justify a potential imputation, not to change which variables are modeled. If missingness appears related to the unobserved value itself even after conditioning on the observed data (i.e., missing-not-at-random, MNAR, cannot be ruled out), no MNAR-specific modeling (e.g., pattern-mixture or selection models) is planned given the modest overall missingness (16.1% of cases); this is instead reported as a limitation of the multiple imputation-based primary analysis.
+- Outcome description: number of events (109), event rate (44.0%), median follow-up computed by the reverse Kaplan-Meier method [@schemper1996].
+- Document the analysis population precisely (n = 248 vs. 249 in the original publication) and produce a simple flow description of excluded/available cases.
+
+## A.3 Outcome handling {.unnumbered}
+
+- Disease-free survival analysis only: This working dataset does not contain age and overall survival, unlike the full published analysis.
+- Right-censoring assumed non-informative: This is an assumption, not something testable from these data, and should be stated explicitly as a limitation.
+
+## A.4 Predictor specification {.unnumbered}
+
+Fitting of the functional forms decided before data analysis
+
+- `PMP22`, `pN`, `ER`: binary, entered as 0/1 indicators. No functional-form issue.
+- `pT`, `G`: ordinal with 3 levels. Primary specification uses a **linear (ordinal-score) coding** (with 1 df each) reflecting the natural monotonic ordering (higher stage/grade $\rightarrow$ worse prognosis is biologically plausible). Adequacy of this constraint is checked *separately* for `pT` and for `G`, via likelihood-ratio test (LRT) comparing the model with that variable linear-coded against the same model with only that variable recoded as a free 3-level factor (1 additional df), the other predictors held at their pre-specified form. A significance level of $\alpha = 0.05$ is pre-specified as the decision rule for each LRT: if p \< 0.05, the free (categorical) coding is used for that variable instead; otherwise the more parsimonious linear coding is retained. This is a pre-specified *functional form* check, which is distinct from variable *selection*. No predictor is dropped. This check is performed before the main-effects model is finalized (*A.6 Model-building strategy*).
+- Full model has 5 (ordinal coding) to 7 (fully categorical `pT`/`G`) degrees of freedom. With 109 events, events-per-parameter is $\approx$ 21.8 (linear coding) to $\approx$ 15.6 (fully categorical), both within the EPV $\geq$ 15 rule of thumb [@harrell_2015]; note that modern sample-size guidance (e.g. Riley et al .) would be used prospectively for a *new* study but is reported here only as a plausibility check on an existing dataset.
+
+## A.5 Missing data {.unnumbered}
+
+- Primary analysis: multiple imputation (MI) by chained equations / fully conditional specification for `PMP22`, `pT`, `pN`, `G`, `ER`, using all other predictors plus outcome information. For the outcome, follow White & Royston's recommendation for imputing covariates in survival models [@white_2009]: include the Nelson-Aalen estimator of the cumulative baseline hazard and the event indicator `rezs` as predictors in the imputation model (rather than raw survival time), to avoid distorting the covariate-outcome associations.
+- Number of imputations: at least $\approx 100 \times$ (fraction of incomplete cases) $\approx 100 \times 0.161 \approx 16$ (White, Royston & Wood rule of thumb) [@white_2011]; use $m = 20 - 50$ for additional stability of pooled estimates and CIs.
+- Estimates pooled across imputations using Rubin's rules for the Cox model coefficients, standard errors, and (where feasible) performance measures.
+- Sensitivity analysis: repeat the full-model analysis on complete cases only (n = 208) and compare coefficients/HRs qualitatively to the MI results.
+- Congeniality with the interaction model: the imputation model above includes only main effects, whereas *A.7 Interaction* (see below) pre-specifies interaction terms (`PMP22`$\times$`ER`, `PMP22`$\times$`pN`, `PMP22`$\times$`pT`). To keep the imputation congenial with this substantive model, the interaction terms are handled by passive imputation (formed as products of the already-imputed variables within each of the *m* completed datasets, rather than imputed directly as separate variables). As a check, the interaction analysis (A.7) is repeated on complete cases only, and any material discrepancy with the multiple imputation-based result is reported.
+
+## A.6 Model-building strategy {.unnumbered}
+
+- Single, pre-specified Cox proportional hazards model with all five predictors entered as main effects simultaneously. No univariable pre-screening, no stepwise/backward elimination, no data-driven inclusion threshold, because the predictors were chosen a priori on clinical grounds and the modeling aim is prediction/adjustment, not discovery.
+- Multicollinearity check: pairwise associations among predictors (e.g. `PMP22` and `ER`) and generalized variance inflation factors (GVIF, appropriate for categorical predictors) to confirm the design is not degenerate; no variable is removed unless GVIF indicates a practically unidentifiable model (e.g., GVIF$^{1/(2\times df)}$ \> 2, the categorical-predictor analogue of VIF \> 4; not expected here given only five predictors, n = 248).
+- Analysis sequence: the order of steps is fixed a priori as (i) finalize the coding of `pT` and `G` via the pre-specified functional-form LRTs (*A.4 Predictor specification*) and fit the resulting main-effects model; (ii) check proportional-hazards assumptions on this model (*A.8 Checking modeling assumptions*), amending it if needed (e.g., adding a time-dependent term for `ER`); (iii) test the pre-specified interactions (*A.7 Interactions*) via the joint LRT against the (possibly amended) main-effects model. This order avoids interactions being tested against a model not yet checked for basic assumption violations, and avoids proportional-hazards checks being run on a model whose functional form is still unsettled.
+
+## A.7 Interactions {.unnumbered}
+
+- Interactions are not searched exhaustively. A small, pre-specified, clinically motivated set is tested: `PMP22 $\times$ ER` (biologically plausible given their reported correlation and shared pathway relevance) and, secondarily, `PMP22 $\times$ pN` and `PMP22 $\times$ pT` (directly relevant to the study question of whether PMP22's effect depends on classical tumor-spread markers).
+- A single joint LRT comparing the main-effects model to the model with all pre-specified product terms added is performed first, to protect against multiplicity from testing several interactions individually. Individual interaction terms are inspected only if the joint test is significant ($\alpha = 0.05$).
+- Given limited events-per-parameter, any retained interaction is treated as exploratory/hypothesis-generating; the primary reported prediction model remains the main-effects model unless an interaction is both statistically compelling and clinically sensible.
+
+## A.8 Checking modeling assumptions {.unnumbered}
+
+- **Proportional hazards**: global and per-covariate tests based on scaled Schoenfeld residuals (Grambsch & Therneau test) plus a graphical check (smoothed residuals vs. time) [@grambsch_1994]. If a covariate (e.g., `ER`, as found in the source publication) shows a time-varying effect, this is accounted for with a time-dependent covariate (interaction with `log(days)`) or by stratification, and its impact on the other coefficients is reported.
+- **Functional form**: as described in A.4 (linear vs. ordinal coding for `pT` and `G`).
+- **Influential observations**: `dfbeta`/`dfbetas` per covariate to flag cases with disproportionate influence on individual coefficients; martingale and deviance residuals for overall fit. Consistent with the pre-specified, non-data-driven nature of this SAP, influential cases are reported and discussed but the model is not refitted after their removal; any such exercise, if performed, is clearly labeled as a post hoc sensitivity analysis.
+- **Multicollinearity**: as in A.6.
+- All checks performed on (and pooled/summarized across, where relevant) the imputed datasets, not only on a single complete-case fit.
+
+## A.9 Quantifying prediction performance {.unnumbered}
+
+- **Discrimination**: Harrell's C-index and/or Uno's C (the latter uses inverse-probability-of-censoring weighting to target a population concordance measure up to a pre-specified truncation time $\tau$, e.g., 5 years, and is less biased than Harrell's C under moderate-to-heavy or covariate-dependent censoring); time-dependent AUC(t) at clinically relevant horizons (e.g., 3 and 5 years).
+- **Calibration**: calibration plot of model-predicted vs. Kaplan-Meier observed disease-free survival probability at fixed horizons (e.g., 3-, 5-year), with calibration intercept and slope.
+- **Overall/global accuracy**: Schemper & Henderson's explained variation V [@schemper_2000] (directly comparable to the measure used in the source publication) and/or the (integrated) Brier score.
+- **Internal validation**: bootstrap resampling ($B \approx 500 - 1000$), Harrell's optimism-correction approach applied to the C-index, calibration slope (shrinkage factor), and explained variation, rather than reporting apparent (in-sample) performance as final. 10-fold cross-validation, as used in the original publication, is an acceptable alternative but bootstrap optimism-correction is may be preferred for its lower variance with datasets of this size.
+- **Combining the bootstrap with multiple imputation**: the optimism correction is performed *within* each of the *m* imputed datasets separately (drawing $B$ bootstrap samples from each completed dataset, refitting the full model-building and validation procedure in each, and computing optimism), rather than bootstrapping the stacked/completed data as if it were a single dataset. The resulting optimism-corrected estimates are then averaged (and their variances combined) across the *m* imputations using Rubin's rules, so that imputation uncertainty is not lost in the resampling step.
+- **Optional**: relative importance of predictors via the "leave-one-out" explained-variation decomposition [@heinze_2003], reported for interpretation only, not for selection.
+
+## A.10 Conditional predicted survival curves {.unnumbered}
+
+- To make the model's predictions concrete, conditional predicted disease-free survival curves are computed for one or more representative covariate profiles defined a priori. For each profile, the Cox model is used to estimate the predicted disease-free survival conditional on the specified values of all covariates (`pT`, `pN`, `G`, and `ER`), typically contrasting PMP22-high versus PMP22-low while keeping all other covariates fixed. This provides an interpretable patient-level illustration of the model predictions rather than presenting regression coefficients alone. Profiles should represent plausible and sufficiently populated combinations of covariates (e.g. common or clinically relevant categories) rather than extreme or sparsely observed combinations, to avoid predictions that rely on extrapolation beyond the support of the data.
+
+## A.11 Reporting {.unnumbered}
+
+- Follow TRIPOD reporting guidance for a prediction model [@moons_2015]: 
+  - patient flow (249 $\rightarrow$ 248 $\rightarrow$ imputed/complete-case), 
+  - baseline characteristics table, 
+  - full table with hazard ratios (HR) (all five predictors) with 95% CIs from the pooled model, 
+  - proportional-hazards and functional-form diagnostics, discrimination and calibration figures (apparent and optimism-corrected), and 
+  - an explicit statement that no variable selection was performed.
+  - **Limitations**, reported explicitly (TRIPOD item 20): (i) center (Vienna vs. Innsbruck) is not available in the working dataset, so multicenter clustering/heterogeneity cannot be assessed or adjusted for; (ii) only internal validation (bootstrap optimism-correction) is performed (no independent external validation cohort is available), so reported performance reflects internal validity only, not generalizability to other settings; (iii) right-censoring is assumed non-informative, which cannot be tested from these data (*A.3 Outcome handling*); (iv) the events-per-parameter assessment (*A.4 Predictor specification*) is a retrospective plausibility check on an existing dataset, not a prospective sample-size calculation; (v) missing-not-at-random cannot be excluded for `pT`, `pN`, `G` (A.2); (vi) age and overall survival, available in the original published analysis, are absent from this working dataset (*A.3 Outcome handling*).
+- Unadjusted Kaplan-Meier curves by PMP22 category may be shown for descriptive purposes, but explicitly labeled as potentially confounded (e.g,. by the`PMP22`-`ER` association) and not used to justify inclusion or exclusion of any predictor.
+- Conditional predicted survival curves
+
+------------------------------------------------------------------------
+
+# SAP B: Univariable pre-screening. A common but flawed practice {#sec-sap_uni}
+
+*This SAP reproduces a workflow that is still used in applied practice. It deliberately includes its typical mistakes.*
+
+## B.1 Univariable screening {.unnumbered}
+
+- Fit a separate univariable Cox model (or log-rank test) for each candidate predictor (`PMP22`, `pT`, `pN`, `G`, `ER`) against disease-free survival, each using whatever cases happen to be non-missing for that single variable.
+- **Pitfall**: the analysis sample silently changes from test to test, which is rarely reported and makes results non-comparable.
+
+## B.2 Apply a significance filter {.unnumbered}
+
+- Retain only variables with univariable p < 0.05. Some variants use relaxed thresholds, like p < 0.10 or 0.20, "to be safe".
+- **Potential pitfall:** It is possible that the variable of primary interest is eliminated at this stage. Based on the univariable HRs reported in the source publication for disease-free survival (`PMP22`: HR 1.01, p = 0.978; pT: HR 1.32, p = 0.061; pN: HR 2.72, p \< 0.0001; G: HR 1.06, p = 0.703; ER: HR 0.63, p = 0.017; the exact values for this 248-case dataset may differ slightly but the pattern is expected to be similar), this filter would **drop `PMP22`** This directly defeats the study's stated aim of evaluating PMP22 if established clinical factors are taken into consideration, since PMP22 never reaches the stage where it could be adjusted for those factors.
+
+## B.3 Multivariable model on the surviving subset {.unnumbered}
+
+- Fit a Cox model with only the variables that passed B.2.
+- Often followed by a further backward-elimination or stepwise procedure (either p-value or AIC based) on this already-reduced set, "to simplify the model further."
+- **Pitfall**: This double selection (univariable filter + stepwise) compounds selection bias. The final model reflects two rounds of data-driven pruning with no correction for either.
+
+## B.4 Missing data {.unnumbered}
+
+- Handle missingness by simple complete-case analysis at whichever stage it is convenient. Often a different subset at the screening stage (B.1) than at the final multivariable stage (B.3) is used without stating or checking the missing data mechanism.
+- **Pitfall**: No MAR/MCAR assessment; potential selection bias from differential missingness; inconsistent sample sizes across tables in the eventual report.
+
+## B.5 Interactions and assumptions {.unnumbered}
+
+- Interactions between predictors are not considered. The workflow typically stops at main effects of the retained variables.
+- Proportional-hazards and functional-form assumptions are either not checked at all, or checked only informally (e.g., a single global test) after the model is already finalized; regularly without a plan for what to do if violated.
+
+## B.6 Inference and reporting {.unnumbered}
+
+- Report the HRs, 95% CIs and p-values from the final reduced model as if the variables had been pre-specified, with no acknowledgment that they were chosen based on their own association with the outcome.
+- **Pitfall**: Standard errors, CIs and p-values from a selected model are invalid (i.e., anti-conservative); they do not reflect the extra uncertainty introduced by the selection step, and the retained effects are typically biased away from the null ("winner's curse").
+- Predictors are commonly described as *independent prognostic factors* based on this biased, selection-conditional model.
+
+## B.7 Performance evaluation {.unnumbered}
+
+- Prediction performance (e.g., C-index, $R^2$-type measure) is computed on the same data used to select and fit the model (i.e., apparent performance), with no bootstrap or cross-validation correction for optimism.
+- **Pitfall**: Reported discrimination/calibration will be optimistically biased, sometimes substantially, because both variable selection and coefficient estimation used the same data without correction.
+
+## B.8 Why this workflow is problematic? {.unnumbered}
+
+1.  **Selection bias**: univariable screening ignores confounding; a variable whose marginal association is null or reversed can be strongly predictive after adjustment (`PMP22` here), and vice versa.
+2.  **Biased effect estimates**: retained variables' hazard ratios tend to be inflated away from the null.
+3.  **Invalid inference**: Confidence intervalls and p-values from the final model do not account for the selection process.
+4.  **Instability**: which variables "survive" screening can change with small perturbations of the data (e.g., different bootstrap samples, slightly different cutoffs); this is usually not checked.
+5.  **Multiple testing without correction**: multiple univariable tests, then further tests within stepwise elimination, treated as if only one test had ever been performed.
+6.  **Optimistic performance claims**: apparent (non-validated) performance overstates real-world predictive ability.
+7.  **Defeats the actual study aim**: the workflow would drop `PMP22` before it is ever assessed jointly with `pT`, `pN`, `G` and `ER`, which represents the specific scientific question this study was designed to answer.
+8.  **No initial data analysis (IDA)**: unlike SAP A (A.2), this workflow proceeds directly to univariable screening without first checking data quality, coding, distributions, or the missing-data mechanism, which compounds all of the risks above and can itself introduce further undetected errors.
+
+
+# Side-by-side summary {#sec-sap_contrast}
+
+| Decision point | SAP A (recommended) | SAP B |
+|------------------------|------------------------|------------------------|
+| Variable inclusion | All five pre-specified, always included | Filtered by univariable p-value |
+| Consequence for `PMP22` | Retained, adjusted HR estimated | Dropped before adjustment |
+| Missing data | Multiple imputation (+ complete-case analysis as sensitivity) | Ad hoc complete-case, inconsistent n |
+| Interactions | Small pre-specified set, joint test first | Not considered |
+| Proportional hazards assumption / functional form | Checked and acted upon | Rarely/never checked |
+| Inference | Reflects only estimation uncertainty (no selection) | Invalid (ignores selection uncertainty) |
+| Performance | Bootstrap optimism-corrected | Apparent (in-sample) only |
+| Reporting | TRIPOD-style, full model shown | Selected model only, causal-sounding language |
+
+## Implementation in R {.unnumbered}
+
+[An implementation of the proposed SAPs in R.](web_extra_w1_study1_SAPwithAnalysis.html) *\[Comment: not attached, work-in-progress\]*
+
+# References
+
+::: {#refs}
+:::
