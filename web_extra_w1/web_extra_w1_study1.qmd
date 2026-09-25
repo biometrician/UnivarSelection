@@ -34,7 +34,7 @@ The original publication reports 249 patients. However, the publicly available d
 
 As the complete analysis following a best practice approach is beyond the scope of this web extra, only results from the original publication [@ullmann_2026] are reproduced here. However, readers interested in a statistical analysis plan outlining a possible best practice analysis are directed to the following resources, where
 
-1.  [the statistical analysis plan is written down](web_extra_w1_study1_SAP.html) *\[Comment: not attached, work-in-progress\]* and
+1.  [the statistical analysis plan is written down](web_extra_w1_study1_SAP.html) and
 
 2.  [this statistical analysis plan is executed](web_extra_w1_study1_SAPwithAnalysis.html) *\[Comment: not attached, work-in-progress\]*.
 :::
