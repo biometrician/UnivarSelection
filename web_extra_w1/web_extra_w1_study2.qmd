@@ -660,3 +660,8 @@ Display the computing environment for the analysis.
 sessioninfo::session_info()
 
 ```
+
+
+------------------------------------------------------------------------
+
+**Use of AI:** AI tools were used to assist in formulating the text and implementing the analyses. The authors critically reviewed, revised, and adapted AI-generated content and code.

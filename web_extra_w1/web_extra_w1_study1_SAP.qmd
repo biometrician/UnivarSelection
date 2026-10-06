@@ -67,6 +67,7 @@ Before the analysis, an IDA is conducted to assess data quality and distribution
 
 - Technical/range checks: valid coding of each factor (`PMP22`, `pN`, `ER` $\in$ {0,1}; `pT`, `G` $\in$ {1,2,3}); `days` \> 0; consistency between `days`/`rezs` and plausible follow-up (no negative or implausibly short times without a corresponding early event).
 - Univariate distributions and cross-tabulations of all predictors (not against the outcome for selection purposes, but to check plausibility, e.g., expected positive correlation between `PMP22` and `ER` as reported previously).
+- Pairwise association strength across all predictor cross-tabulations is summarised visually using a Cramér's V heatmap.
 - Missing-data description: missingness per variable, pattern, and proportion of cases with missing predictors.
 - Missing-data mechanism: compare observed-vs-missing subgroups on the *other* observed covariates and on the outcome (event indicator, log follow-up time) via logistic regression of each missingness indicator on the remaining variables, to assess plausibility of missing-at-random (MAR) vs missing-completely-at-random (MCAR). No formal test (e.g., Little's MCAR) is decisive here. The assessment is used only to justify a potential imputation, not to change which variables are modeled. If missingness appears related to the unobserved value itself even after conditioning on the observed data (i.e., missing-not-at-random, MNAR, cannot be ruled out), no MNAR-specific modeling (e.g., pattern-mixture or selection models) is planned given the modest overall missingness (16.1% of cases); this is instead reported as a limitation of the multiple imputation-based primary analysis.
 - Outcome description: number of events (109), event rate (44.0%), median follow-up computed by the reverse Kaplan-Meier method [@schemper1996].
@@ -214,3 +215,5 @@ Fitting of the functional forms decided before data analysis
 
 ::: {#refs}
 :::
+
+**Use of AI:** AI tools were used to assist in formulating the statistical analysis plans. The authors critically reviewed, revised, and adapted AI-generated content
