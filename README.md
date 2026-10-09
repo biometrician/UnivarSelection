@@ -6,6 +6,8 @@ This repository includes the code and materials needed to reproduce the analysis
 > *The Problem with Univariable Selection in Regression Modelling — and What To Do Instead.*
 > Manuscript in preparation.
 
+<br>
+
 ## Contents
 
 ### Interactive Shiny app
@@ -34,7 +36,7 @@ https://biometrician.github.io/UnivarSelection/
 
 The [`simple_simu`](simple_simu/) folder contains the R code to reproduce the results of the simple simulation, which are reported in the subchapter *Demonstrating the problems: a simple simulation* of the manuscript.
 
----
+<br>
 
 ## Reproducibility
 
