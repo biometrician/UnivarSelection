@@ -8,7 +8,7 @@
 
 <meta name="author" content="Daniela Dunkler, Theresa Ullmann and Georg Heinze">
 <meta name="author" content="Franziska Kappenberg">
-<meta name="dcterms.date" content="2026-10-06">
+<meta name="dcterms.date" content="2026-10-23">
 
 <title>Statistical Analysis Plans: Identifying biomarkers for cancer prognosis – Web extra</title>
 <style>
@@ -4968,7 +4968,7 @@ window.Quarto = {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">October 6, 2026</p>
+      <p class="date">October 23, 2026</p>
     </div>
   </div>
   
@@ -5073,7 +5073,7 @@ window.Quarto = {
 <ul>
 <li><code>PMP22</code>, <code>pN</code>, <code>ER</code>: binary, entered as 0/1 indicators. No functional-form issue.</li>
 <li><code>pT</code>, <code>G</code>: ordinal with 3 levels. Primary specification uses a <strong>linear (ordinal-score) coding</strong> (with 1 df each) reflecting the natural monotonic ordering (higher stage/grade <span class="math inline">\rightarrow</span> worse prognosis is biologically plausible). Adequacy of this constraint is checked <em>separately</em> for <code>pT</code> and for <code>G</code>, via likelihood-ratio test (LRT) comparing the model with that variable linear-coded against the same model with only that variable recoded as a free 3-level factor (1 additional df), the other predictors held at their pre-specified form. A significance level of <span class="math inline">\alpha = 0.05</span> is pre-specified as the decision rule for each LRT: if p &lt; 0.05, the free (categorical) coding is used for that variable instead; otherwise the more parsimonious linear coding is retained. This is a pre-specified <em>functional form</em> check, which is distinct from variable <em>selection</em>. No predictor is dropped. This check is performed before the main-effects model is finalized (<em>A.6 Model-building strategy</em>).</li>
-<li>Full model has 5 (ordinal coding) to 7 (fully categorical <code>pT</code>/<code>G</code>) degrees of freedom. With 109 events, events-per-parameter is <span class="math inline">\approx</span> 21.8 (linear coding) to <span class="math inline">\approx</span> 15.6 (fully categorical), both within the EPV <span class="math inline">\geq</span> 15 rule of thumb <span class="citation" data-cites="harrell_2015">(<a href="#ref-harrell_2015" role="doc-biblioref">Harrell Jr. 2015</a>)</span>; note that modern sample-size guidance (e.g. Riley et al .) would be used prospectively for a <em>new</em> study but is reported here only as a plausibility check on an existing dataset.</li>
+<li>Full model has 5 (ordinal coding) to 7 (fully categorical <code>pT</code>/<code>G</code>) degrees of freedom. With 109 events, events-per-parameter is <span class="math inline">\approx</span> 21.8 (linear coding) to <span class="math inline">\approx</span> 15.6 (fully categorical), both within the EPV <span class="math inline">\geq</span> 15 rule of thumb <span class="citation" data-cites="harrell_2015">(<a href="#ref-harrell_2015" role="doc-biblioref">Harrell Jr. 2015</a>)</span>; note that modern sample-size guidance (e.g. <span class="citation" data-cites="riley_minimum_2019">Riley et al. (<a href="#ref-riley_minimum_2019" role="doc-biblioref">2019</a>)</span>) would be used prospectively for a <em>new</em> study but is reported here only as a plausibility check on an existing dataset.</li>
 </ul>
 </section>
 <section id="a.5-missing-data" class="level2 unnumbered">
@@ -5097,7 +5097,7 @@ window.Quarto = {
 <section id="a.7-interactions" class="level2 unnumbered">
 <h2 class="unnumbered anchored" data-anchor-id="a.7-interactions">A.7 Interactions</h2>
 <ul>
-<li>Interactions are not searched exhaustively. A small, pre-specified, clinically motivated set is tested: <code>PMP22 $\times$ ER</code> (biologically plausible given their reported correlation and shared pathway relevance) and, secondarily, <code>PMP22 $\times$ pN</code> and <code>PMP22 $\times$ pT</code> (directly relevant to the study question of whether PMP22’s effect depends on classical tumor-spread markers).</li>
+<li>Interactions are not searched exhaustively. A small, pre-specified, clinically motivated set is tested: <code>PMP22 × ER</code> (biologically plausible given their reported correlation and shared pathway relevance) and, secondarily, <code>PMP22 × pN</code> and <code>PMP22 × pT</code> (directly relevant to the study question of whether PMP22’s effect depends on classical tumor-spread markers).</li>
 <li>A single joint LRT comparing the main-effects model to the model with all pre-specified product terms added is performed first, to protect against multiplicity from testing several interactions individually. Individual interaction terms are inspected only if the joint test is significant (<span class="math inline">\alpha = 0.05</span>).</li>
 <li>Given limited events-per-parameter, any retained interaction is treated as exploratory/hypothesis-generating; the primary reported prediction model remains the main-effects model unless an interaction is both statistically compelling and clinically sensible.</li>
 </ul>
@@ -5292,6 +5292,9 @@ Heinze, Georg, and Michael Schemper. 2003. <span>“Comparing the Importance of 
 </div>
 <div id="ref-moons_2015" class="csl-entry" role="listitem">
 Moons, K. G., D. G. Altman, J. B. Reitsma, J. P. Ioannidis, P. Macaskill, E. W. Steyerberg, A. J. Vickers, D. F. Ransohoff, and G. S. Collins. 2015. <span>“Transparent <span>Reporting</span> of a Multivariable Prediction Model for <span>Individual</span> <span>Prognosis</span> or <span>Diagnosis</span> (<span>TRIPOD</span>): Explanation and Elaboration.”</span> <em>Ann Intern Med</em> 162 (1): W1–73. <a href="https://doi.org/10.7326/M14-0698">https://doi.org/10.7326/M14-0698</a>.
+</div>
+<div id="ref-riley_minimum_2019" class="csl-entry" role="listitem">
+Riley, R. D., K. I. E. Snell, J. Ensor, D. L. Burke, F. E. Harrell, K. G. M. Moons, and G. S. Collins. 2019. <span>“Minimum Sample Size for Developing a Multivariable Prediction Model: <span>Part</span> <span>I</span> - <span>Continuous</span> Outcomes.”</span> <em>Statistics in Medicine</em> 38 (7): 1262–75. <a href="https://doi.org/10.1002/sim.7993">https://doi.org/10.1002/sim.7993</a>.
 </div>
 <div id="ref-schemper_2000" class="csl-entry" role="listitem">
 Schemper, Michael, and Robin Henderson. 2000. <span>“Predictive <span>Accuracy</span> and <span>Explained</span> <span>Variation</span> in <span>Cox</span> <span>Regression</span>.”</span> <em>Biometrics</em> 56 (1): 249–55. <a href="https://doi.org/10.1111/j.0006-341x.2000.00249.x">https://doi.org/10.1111/j.0006-341x.2000.00249.x</a>.
@@ -5874,7 +5877,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`PMP22`</span>, <span class="in">`pN`</span>, <span class="in">`ER`</span>: binary, entered as 0/1 indicators. No functional-form issue.</span>
 <span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="in">`pT`</span>, <span class="in">`G`</span>: ordinal with 3 levels. Primary specification uses a **linear (ordinal-score) coding** (with 1 df each) reflecting the natural monotonic ordering (higher stage/grade $\rightarrow$ worse prognosis is biologically plausible). Adequacy of this constraint is checked *separately* for `pT` and for `G`, via likelihood-ratio test (LRT) comparing the model with that variable linear-coded against the same model with only that variable recoded as a free 3-level factor (1 additional df), the other predictors held at their pre-specified form. A significance level of $\alpha = 0.05$ is pre-specified as the decision rule for each LRT: if p \&lt; 0.05, the free (categorical) coding is used for that variable instead; otherwise the more parsimonious linear coding is retained. This is a pre-specified *functional form* check, which is distinct from variable *selection*. No predictor is dropped. This check is performed before the main-effects model is finalized (*A.6 Model-building strategy*).</span>
-<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Full model has 5 (ordinal coding) to 7 (fully categorical <span class="in">`pT`</span>/<span class="in">`G`</span>) degrees of freedom. With 109 events, events-per-parameter is $\approx$ 21.8 (linear coding) to $\approx$ 15.6 (fully categorical), both within the EPV $\geq$ 15 rule of thumb <span class="co">[</span><span class="ot">@harrell_2015</span><span class="co">]</span>; note that modern sample-size guidance (e.g. Riley et al .) would be used prospectively for a *new* study but is reported here only as a plausibility check on an existing dataset.</span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Full model has 5 (ordinal coding) to 7 (fully categorical <span class="in">`pT`</span>/<span class="in">`G`</span>) degrees of freedom. With 109 events, events-per-parameter is $\approx$ 21.8 (linear coding) to $\approx$ 15.6 (fully categorical), both within the EPV $\geq$ 15 rule of thumb <span class="co">[</span><span class="ot">@harrell_2015</span><span class="co">]</span>; note that modern sample-size guidance (e.g. @riley_minimum_2019) would be used prospectively for a *new* study but is reported here only as a plausibility check on an existing dataset.</span>
 <span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a><span class="fu">## A.5 Missing data {.unnumbered}</span></span>
 <span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a></span>
@@ -5892,7 +5895,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a><span class="fu">## A.7 Interactions {.unnumbered}</span></span>
 <span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Interactions are not searched exhaustively. A small, pre-specified, clinically motivated set is tested: <span class="in">`PMP22 $\times$ ER`</span> (biologically plausible given their reported correlation and shared pathway relevance) and, secondarily, <span class="in">`PMP22 $\times$ pN`</span> and <span class="in">`PMP22 $\times$ pT`</span> (directly relevant to the study question of whether PMP22&#39;s effect depends on classical tumor-spread markers).</span>
+<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Interactions are not searched exhaustively. A small, pre-specified, clinically motivated set is tested: <span class="in">`PMP22 × ER`</span> (biologically plausible given their reported correlation and shared pathway relevance) and, secondarily, <span class="in">`PMP22 × pN`</span> and <span class="in">`PMP22 × pT`</span> (directly relevant to the study question of whether PMP22&#39;s effect depends on classical tumor-spread markers).</span>
 <span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>A single joint LRT comparing the main-effects model to the model with all pre-specified product terms added is performed first, to protect against multiplicity from testing several interactions individually. Individual interaction terms are inspected only if the joint test is significant ($\alpha = 0.05$).</span>
 <span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Given limited events-per-parameter, any retained interaction is treated as exploratory/hypothesis-generating; the primary reported prediction model remains the main-effects model unless an interaction is both statistically compelling and clinically sensible.</span>
 <span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a></span>

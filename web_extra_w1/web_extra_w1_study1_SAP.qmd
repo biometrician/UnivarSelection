@@ -84,7 +84,7 @@ Fitting of the functional forms decided before data analysis
 
 - `PMP22`, `pN`, `ER`: binary, entered as 0/1 indicators. No functional-form issue.
 - `pT`, `G`: ordinal with 3 levels. Primary specification uses a **linear (ordinal-score) coding** (with 1 df each) reflecting the natural monotonic ordering (higher stage/grade $\rightarrow$ worse prognosis is biologically plausible). Adequacy of this constraint is checked *separately* for `pT` and for `G`, via likelihood-ratio test (LRT) comparing the model with that variable linear-coded against the same model with only that variable recoded as a free 3-level factor (1 additional df), the other predictors held at their pre-specified form. A significance level of $\alpha = 0.05$ is pre-specified as the decision rule for each LRT: if p \< 0.05, the free (categorical) coding is used for that variable instead; otherwise the more parsimonious linear coding is retained. This is a pre-specified *functional form* check, which is distinct from variable *selection*. No predictor is dropped. This check is performed before the main-effects model is finalized (*A.6 Model-building strategy*).
-- Full model has 5 (ordinal coding) to 7 (fully categorical `pT`/`G`) degrees of freedom. With 109 events, events-per-parameter is $\approx$ 21.8 (linear coding) to $\approx$ 15.6 (fully categorical), both within the EPV $\geq$ 15 rule of thumb [@harrell_2015]; note that modern sample-size guidance (e.g. Riley et al .) would be used prospectively for a *new* study but is reported here only as a plausibility check on an existing dataset.
+- Full model has 5 (ordinal coding) to 7 (fully categorical `pT`/`G`) degrees of freedom. With 109 events, events-per-parameter is $\approx$ 21.8 (linear coding) to $\approx$ 15.6 (fully categorical), both within the EPV $\geq$ 15 rule of thumb [@harrell_2015]; note that modern sample-size guidance (e.g. @riley_minimum_2019) would be used prospectively for a *new* study but is reported here only as a plausibility check on an existing dataset.
 
 ## A.5 Missing data {.unnumbered}
 
@@ -102,7 +102,7 @@ Fitting of the functional forms decided before data analysis
 
 ## A.7 Interactions {.unnumbered}
 
-- Interactions are not searched exhaustively. A small, pre-specified, clinically motivated set is tested: `PMP22 $\times$ ER` (biologically plausible given their reported correlation and shared pathway relevance) and, secondarily, `PMP22 $\times$ pN` and `PMP22 $\times$ pT` (directly relevant to the study question of whether PMP22's effect depends on classical tumor-spread markers).
+- Interactions are not searched exhaustively. A small, pre-specified, clinically motivated set is tested: `PMP22 × ER` (biologically plausible given their reported correlation and shared pathway relevance) and, secondarily, `PMP22 × pN` and `PMP22 × pT` (directly relevant to the study question of whether PMP22's effect depends on classical tumor-spread markers).
 - A single joint LRT comparing the main-effects model to the model with all pre-specified product terms added is performed first, to protect against multiplicity from testing several interactions individually. Individual interaction terms are inspected only if the joint test is significant ($\alpha = 0.05$).
 - Given limited events-per-parameter, any retained interaction is treated as exploratory/hypothesis-generating; the primary reported prediction model remains the main-effects model unless an interaction is both statistically compelling and clinically sensible.
 

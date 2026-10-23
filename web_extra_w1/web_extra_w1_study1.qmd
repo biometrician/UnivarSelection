@@ -76,7 +76,7 @@ extract_cox <- function(fit) {
 }
 ```
 
-The data are then read and prepared for analysis. The first 6 observations are plotted to get an impression of the data.
+The data are then read and prepared for analysis. The first 6 observations are printed to get an impression of the data.
 
 ```{r}
 #| label: reading-data
@@ -141,6 +141,53 @@ table1( ~ PMP22_f + pN_f + ER_f + pT_f + G_f, data = pmpdata_complete)
 
 ```
 
+## Pairwise associations between baseline characteristics
+Cramer's V is used to quantify the pairwise associations between the categorical baseline characteristics. Cramer's V ranges from 0 (no association) to 1 (perfect association).
+
+```{r}
+#| label: predictor-association-heatmap
+#| fig-cap: "Pairwise association strength (Cramer's V) among the five predictors, complete cases (n = 208). The diagonal is fixed at 1 by definition."
+
+# predictors (factor versions) and display labels
+pred_vars   <- c("PMP22_f", "pN_f", "ER_f", "pT_f", "G_f")
+pred_labels <- c(PMP22_f = "PMP22", pN_f = "Nodal status", ER_f = "ER status",
+                 pT_f = "Tumour size", G_f = "Tumour grade")
+
+# Cramer's V from a two-way table (Pearson chi-square, no continuity correction)
+cramers_v <- function(x, y) {
+  tab  <- table(x, y)
+  chi2 <- suppressWarnings(chisq.test(tab, correct = FALSE)$statistic)
+  unname(sqrt(chi2 / (sum(tab) * (min(dim(tab)) - 1))))
+}
+
+assoc_mat <- matrix(1, nrow = length(pred_vars), ncol = length(pred_vars),
+                    dimnames = list(pred_labels[pred_vars], pred_labels[pred_vars]))
+
+for (p in combn(pred_vars, 2, simplify = FALSE)) {
+  v <- cramers_v(pmpdata_complete[[p[1]]], pmpdata_complete[[p[2]]])
+  assoc_mat[pred_labels[p[1]], pred_labels[p[2]]] <- v
+  assoc_mat[pred_labels[p[2]], pred_labels[p[1]]] <- v
+}
+
+assoc_df <- as.data.frame(as.table(assoc_mat))
+names(assoc_df) <- c("Var1", "Var2", "CramersV")
+# keep the predictor order on both axes
+assoc_df$Var1 <- factor(assoc_df$Var1, levels = pred_labels)
+assoc_df$Var2 <- factor(assoc_df$Var2, levels = rev(pred_labels))
+
+ggplot(assoc_df, aes(Var1, Var2, fill = CramersV)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", CramersV)), size = 3.5) +
+  scale_fill_gradient(low = "white", high = "#D7301F", limits = c(0, 1),
+                      name = "Cramer's V") +
+  labs(x = NULL, y = NULL) +
+  theme_minimal(base_size = 11) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+The heatmap shows that the strongest pair-wise association is between PMP22 and ER.
+
 ## Outcome summary
 
 Among `r nrow(pmpdata_complete)` patients, `r sum(pmpdata_complete$rezs)` events occurred (`r round(100 * sum(pmpdata_complete$rezs) / nrow(pmpdata_complete), 1)`%).
@@ -188,7 +235,7 @@ The objective is to estimate the association between PMP22 and disease-free surv
 
 ::: {.callout-tip collapse="true" title="Additional information: model considerations"}
 
-In applied analyses, key assumptions of the Cox model should be assessed, including proportional hazards and potential multicollinearity. Pre-specified interactions may be considered where clinically justified. If the proportional hazards assumption is violated (e.g., for `ER`), time-varying effects can be incorporated, for example, by modelling an interaction of `ER` with log(`days`).
+In applied analyses, key assumptions of the Cox model should be assessed, including proportional hazards and potential multicollinearity. Pre-specified interactions may be considered where clinically justified. If the proportional hazards assumption is violated (e.g., for variable `ER`), time-varying effects can be incorporated, for example, by modelling an interaction of `ER` with log(`days`).
 :::
 
 The pre-specified model is:

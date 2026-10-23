@@ -3,7 +3,7 @@
 # Consequences of Applying Univariable Preselection Compared to
 # Backward Elimination - Educational Shiny app
 #
-# November 2026
+# October 2026
 # Daniela Dunkler, Theresa Ullmann
 #
 # Note: deployment to shinyapps.io only works if the file is outside saved
@@ -678,7 +678,7 @@ ui <- fluidPage(
                 h5("Disclaimer"),
                 tags$p("For educational purposes only. The authors accept no liability for use of results in clinical or policy decisions."),
                 h5("Version"),
-                tags$p(HTML("Version 1.0 &mdash; [RELEASE September 2026]"), class = "text-muted")
+                tags$p(HTML("Version 1.0 &mdash; [RELEASE October 2026]"), class = "text-muted")
               )
 
           ) # end max-width div
