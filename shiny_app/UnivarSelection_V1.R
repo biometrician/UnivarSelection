@@ -3,7 +3,7 @@
 # Consequences of Applying Univariable Preselection Compared to
 # Backward Elimination - Educational Shiny app
 #
-# September 2026
+# November 2026
 # Daniela Dunkler, Theresa Ullmann
 #
 # Note: deployment to shinyapps.io only works if the file is outside saved
@@ -525,12 +525,12 @@ ui <- fluidPage(
                   h5(style = "color:#e74c3c; margin-top:0;", "Univariable Preselection"),
                   tags$ol(
                     tags$li(HTML("Derive a set of all predictors that are candidates for the multivariable model.")),
-                    tags$li(HTML("Fit a separate univariable linear regression model for each predictor: lm(Y ~ X<sub>1</sub>) and lm(Y ~ X<sub>2</sub>).")),
+                    tags$li(HTML("Fit a separate univariable linear regression model for each predictor. Here: lm(Y ~ X<sub>1</sub>) and lm(Y ~ X<sub>2</sub>).")),
                     tags$li(HTML("Keep only those predictors with p &lt; &alpha;.")),
                     tags$li("Derive the final model using only the selected predictors.")
                   ),
                   p(style = "color:#c0392b; font-size:13px;",
-                    HTML("<b>Problem:</b> When X<sub>1</sub> and X<sub>2</sub> are
+                    HTML("<b>Problem: </b>Variables are evaluated individually. Here: When X<sub>1</sub> and X<sub>2</sub> are
                           correlated, the univariable test for one variable does not
                           account for the other. This can make a truly important
                           variable look unimportant or vice versa."))
@@ -541,14 +541,14 @@ ui <- fluidPage(
                   h5(style = "color:#2980b9; margin-top:0;", "Backward Elimination"),
                   tags$ol(
                     tags$li(HTML("Derive a set of all predictors that are candidates for the multivariable model.")),
-                    tags$li(HTML("Start with a reasonable full model containing all predictors: lm(Y ~ X<sub>1</sub> + X<sub>2</sub>).")),
-                    tags$li("At each step, remove the predictor with the largest p-value, provided it exceeds the threshold &alpha;."),
+                    tags$li(HTML("Start with a reasonable full model containing all predictors. Here: lm(Y ~ X<sub>1</sub> + X<sub>2</sub>).")),
+                    tags$li(HTML("At each step, remove the predictor with the largest p-value, provided it exceeds the threshold &alpha;.")),
                     tags$li(HTML("Stop when all remaining predictors are significant for the threshold &alpha;."))
                   ),
                   p(style = "color:#1a5276; font-size:13px;",
-                    HTML("<b>Advantage:</b> All variables are always evaluated
-                          in the context of the others. The correlation between
-                          X<sub>1</sub> and X<sub>2</sub> is accounted for at every step."))
+                    HTML("<b>Advantage:</b> Variables are always evaluated
+                          in the context of the others. Here: The correlation between
+                          X<sub>1</sub> and X<sub>2</sub> is accounted for."))
                 ))
               ),
 
@@ -559,12 +559,12 @@ ui <- fluidPage(
                    the signs of the two effect coefficients (&beta;<sub>1</sub>,
                    &beta;<sub>2</sub>) and the correlation (r) are arranged so
                    that their product is negative
-                   [sign(&beta;<sub>1</sub> &times; &beta;<sub>2</sub> &times; r) &lt; 0].
+                   [(&beta;<sub>1</sub> &times; &beta;<sub>2</sub> &times; r) &lt; 0.].
                    In this <b>masking scenario</b>, one variable \"masks\"
                    the effect of the other in a univariable test, causing its
                    p-value to be much larger than it should be.")),
               p(HTML("A related scenario is <b>amplification</b> (ommitted variable bias), which occurs when the
-                   product &beta;<sub>1</sub> &times; &beta;<sub>2</sub> &times; r &gt; 0.
+                   product is positive [(&beta;<sub>1</sub> &times; &beta;<sub>2</sub> &times; r) &gt; 0].
                    Here the univariable estimates are biased <i>away</i> from zero, making
                    variables appear more important than they truly are.
                    Both scenarios arise whenever all three quantities (&beta;<sub>1</sub>,
@@ -584,7 +584,8 @@ ui <- fluidPage(
                 tags$li(HTML("<b>Click \"RUN MAIN SIMULATION\"</b> to generate results for tabs 1 to 5. A progress bar will appear in the corresponding tabs.")),
                 tags$li(HTML("<b>Click \"RUN SENSITIVITY ANALYSIS\"</b> to populate tab 6. This may take 2&ndash;3 minutes. A progress bar will appear in tab 6.")),
                 tags$li(HTML("<b>Click \"NEW SINGLE DATASET\"</b> to populate tab 7, which shows one concrete example.")),
-                tags$li("Explore the tabs in order; each one adds a layer of understanding.")
+                tags$li("Explore the tabs in order; each one adds a layer of understanding."),
+                tags$li(HTML("If you change the parameters, click again on <b>\"RUN MAIN SIMULATION\", \"RUN SENSITIVITY ANALYSIS\" and \"NEW SINGLE DATASET\"</b>."))
               ),
 
               hr(),
