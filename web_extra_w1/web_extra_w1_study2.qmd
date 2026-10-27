@@ -269,6 +269,12 @@ ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
 
 cor_offdiag <- cormat[lower.tri(cormat)]
 
+cat("\nNumber of pair-wise Spearman correlations: ")
+length(cor_offdiag)
+
+cat("\nSummary of all pair-wise Spearman correlations\n")
+summary(cor_offdiag)
+
 ```
 
 Spearman correlations between candidate covariates ranged from `r round(min(cor_offdiag), 2)` to `r round(max(cor_offdiag), 2)` (median absolute correlation `r round(median(abs(cor_offdiag)), 2)`).
@@ -467,6 +473,7 @@ Estimates from a model built via univariable screening are often reported as tho
 
 Because the full model's covariates were themselves pre-specified from subject-matter knowledge rather than assembled from an arbitrary or excessively large pool, starting the reduction from this defensible full model, and evaluating each covariate conditionally on all others at every step, is a reasonable approach here: unlike univariable screening, it does not ignore confounding, and unlike a data-driven search from scratch, it does not risk building a model out of covariates with no substantive justification.
 
+We decide to use backward elimination with AIC. For a single 1-df variable (as the variables here), AIC is equivalent to a likelihood-ratio test with α ≈ 0.157. Hence, backward elimination with AIC is a less strict stopping rule than α = 0.05. We can expect, that variables with moderate effects are retained instead of dropped. 
 AIC balances model fit against model complexity. It is defined as $\mathrm{AIC} = -2 \times \text{log-likelihood} + 2 \times (\text{number of parameters})$, so each additional covariate must improve the fit enough to outweigh its 2-point complexity penalty. Lower AIC values indicate a preferred trade-off between fit and complexity. AIC is only meaningful for comparing models fitted to the same outcome and the same observations. It is the *difference* between AIC values, not their absolute value, that is interpreted. Differences of about 2 or less are usually considered negligible.
 
 ```{r}
@@ -550,10 +557,8 @@ kable(comparison_display, row.names = FALSE,
       col.names = c("Variable", rep(c("Estimate", "p-value"), times = 4))) %>%
   add_header_above(c(" " = 1, "Univariable models" = 2, "Univariable-filtered model" = 2,
                      "Pre-specified full model" = 2, "Backward elimination with AIC" = 2)) %>%
-  kable_styling(full_width = TRUE, position = "center", font_size = 12) %>%
+  kable_styling(full_width = TRUE, position = "center", font_size = 12, bootstrap_options = NULL) %>%
   row_spec(0, bold = TRUE) %>%
-  # colour-blind-friendly (Okabe-Ito) tints, combined with bold/italic so colour
-  # is never the only cue distinguishing the two groups of rows
   row_spec(bold_rows, bold = TRUE, background = "#FCE4B6") %>%
   row_spec(italic_rows, italic = TRUE, background = "#CDE6F7")
 

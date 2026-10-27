@@ -286,46 +286,45 @@ raise plausibility concerns. As with the individual cross-tabulations,
 this is a descriptive plausibility check (A.2).<!-- and plays no role in
 variable selection.-->
 
+### Plausibility of missing-at-random {.unnumbered}
+
 `r n_complete` of 248 patients (`r round(100*n_complete/248,1)`%) are
 complete on all five predictors. This moderate degree of missingness (up
 to \~12% for nodal status) motivates using multiple imputation as the
 primary analysis (Section A.5) rather than discarding \~16% of patients
 via complete-case analysis.
 
-### Plausibility of missing-at-random {.unnumbered}
+As an exploratory check, we regress the missingness indicator of each of variable on the remaining predictors and the outcome (event indicator, log follow-up time) using logistic regression. Such a check can only reveal dependence of missingness on observed data (i.e., evidence against missing-completely-at-random MCAR). It cannot verify missing-at-random MAR, which concerns the unobserved values and is untestable. Conversely, non-significant results are not proof of MCAR, as power is limited by the small number of missing values.
 
-As a simple, transparent check, we regress the missingness indicator of
-each partially missing predictor on the other observed predictors and
-the outcome (event indicator, log follow-up time). Significant
-associations would suggest the missingness is related to observed
-information, consistent with (but not proof of)
-missing-at-random (MAR), and support using multiple imputation rather than
-complete-case analysis.
+::: {.callout-tip collapse="true" title="Plausibility of missing-at-random"}
 
 ```{r}
 #| label: ida-mar-check
 #| warning: FALSE
+
+cat("\nNumber of missing observations for each variable\n")
+apply(is.na(df[,1:7]),2,sum)
 
 check_missing_assoc <- function(varname) {
   d <- df
   d$miss_ind <- as.integer(is.na(d[[varname]]))
   predictors <- setdiff(c("PMP22", "pT", "pN", "G", "ER"), varname)
   form <- as.formula(paste("miss_ind ~", paste(predictors, collapse = " + "),
-                            "+ rezs + log(days)"))
+                           "+ rezs + log(days)"))
   fit <- glm(form, data = d, family = binomial)
-  round(summary(fit)$coefficients[, "Pr(>|z|)"], 3)
+  s <- summary(fit)$coefficients[-1, , drop = FALSE]
+  data.frame(OR = exp(s[, "Estimate"]), p = s[, "Pr(>|z|)"]) |> round(3)
 }
 
-for (v in c("pT", "pN", "G")) {
+for (v in c("PMP22", "pT", "pN", "G", "ER")) {
   cat("\nMissingness of", v, "regressed on remaining variables + outcome:\n")
   print(check_missing_assoc(v))
 }
 
 ```
+:::
 
-None of these associations is strong or systematic, i.e., there is no
-clear evidence *against* MAR. We proceed with multiple imputation as the
-primary approach and report complete-case analysis as a sensitivity check.
+No association of missingness with the observed variables was statistically significant (all p > 0.05). So there is no evidence against MCAR. However, this does not establish it. Hence, we do not base the choice of method on this check. Because MAR is a more plausible assumption than MCAR and multiple imputation uses all 248 patients, multiple imputation (including the outcome in the imputation model) is the primary approach. The complete-case analysis is reported as a sensitivity analysis.
 
 *Note on ER completeness*: the original publication reports ER missing
 in 22.5% of cases at the immunohistochemistry stage but re-classified
